@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       }
     } catch (error) {
       console.error('❌ Firebase Admin SDK error:', error);
-      firebaseAdminCheck = `❌ Firebase Admin SDK error: ${error.message}`;
+      firebaseAdminCheck = `❌ Firebase Admin SDK error: ${error instanceof Error ? error.message : String(error)}`;
     }
     
     // Try to import the ProviderManager
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Try to get available providers
-    let availableProviders = [];
+    let availableProviders: any[] = [];
     let providersError = null;
     
     if (providerManager) {
@@ -70,41 +70,41 @@ export async function GET(request: NextRequest) {
     }
     
     // Try to import individual providers
-    const providerImports = {};
+    const providerImports: Record<string, string> = {};
     
     try {
       const { AzureOpenAIProvider } = await import('@/lib/api-providers/openai-provider');
       providerImports['AzureOpenAIProvider'] = '✅ Success';
     } catch (error) {
-      providerImports['AzureOpenAIProvider'] = `❌ ${error.message}`;
+      providerImports['AzureOpenAIProvider'] = `❌ ${error instanceof Error ? error.message : String(error)}`;
     }
     
     try {
       const { GeminiProvider } = await import('@/lib/api-providers/gemini-provider');
       providerImports['GeminiProvider'] = '✅ Success';
     } catch (error) {
-      providerImports['GeminiProvider'] = `❌ ${error.message}`;
+      providerImports['GeminiProvider'] = `❌ ${error instanceof Error ? error.message : String(error)}`;
     }
     
     try {
       const { ChatGPTSearchProvider } = await import('@/lib/api-providers/chatgptsearch-provider');
       providerImports['ChatGPTSearchProvider'] = '✅ Success';
     } catch (error) {
-      providerImports['ChatGPTSearchProvider'] = `❌ ${error.message}`;
+      providerImports['ChatGPTSearchProvider'] = `❌ ${error instanceof Error ? error.message : String(error)}`;
     }
     
     try {
       const { GoogleAIOverviewProvider } = await import('@/lib/api-providers/google-ai-overview-provider');
       providerImports['GoogleAIOverviewProvider'] = '✅ Success';
     } catch (error) {
-      providerImports['GoogleAIOverviewProvider'] = `❌ ${error.message}`;
+      providerImports['GoogleAIOverviewProvider'] = `❌ ${error instanceof Error ? error.message : String(error)}`;
     }
     
     try {
       const { PerplexityProvider } = await import('@/lib/api-providers/perplexity-provider');
       providerImports['PerplexityProvider'] = '✅ Success';
     } catch (error) {
-      providerImports['PerplexityProvider'] = `❌ ${error.message}`;
+      providerImports['PerplexityProvider'] = `❌ ${error instanceof Error ? error.message : String(error)}`;
     }
     
     // Check if OpenAI package is available
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
       const OpenAI = await import('openai');
       openaiPackageCheck = '✅ OpenAI package available';
     } catch (error) {
-      openaiPackageCheck = `❌ OpenAI package error: ${error.message}`;
+      openaiPackageCheck = `❌ OpenAI package error: ${error instanceof Error ? error.message : String(error)}`;
     }
     
     // Check if firebase-admin package is available
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       const firebaseAdmin = await import('firebase-admin');
       firebaseAdminPackageCheck = '✅ Firebase Admin package available';
     } catch (error) {
-      firebaseAdminPackageCheck = `❌ Firebase Admin package error: ${error.message}`;
+      firebaseAdminPackageCheck = `❌ Firebase Admin package error: ${error instanceof Error ? error.message : String(error)}`;
     }
     
     // Test authentication middleware
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
       const { withAuth } = await import('@/lib/api-auth-middleware');
       authMiddlewareCheck = '✅ Authentication middleware available';
     } catch (error) {
-      authMiddlewareCheck = `❌ Authentication middleware error: ${error.message}`;
+      authMiddlewareCheck = `❌ Authentication middleware error: ${error instanceof Error ? error.message : String(error)}`;
     }
     
     return NextResponse.json({
