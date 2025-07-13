@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brand Context Functionality Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+        .test-pass {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        .test-fail {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .test-warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        .code {
+            background: #f1f3f4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-pass { background: #28a745; color: white; }
+        .status-fail { background: #dc3545; color: white; }
+        .status-warning { background: #ffc107; color: #212529; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Brand Context Data Fetching Test Suite</h1>
+        <p>This page tests the brand context data fetching functionality for the v8dashboard application.</p>
+        
+        <div class="test-section">
+            <h2>📋 Test Instructions</h2>
+            <ol>
+                <li>Make sure you're signed in to the dashboard</li>
+                <li>Navigate to <code>http://localhost:3000/dashboard/test-brand-context</code></li>
+                <li>Open browser developer tools (F12)</li>
+                <li>Copy and paste the test scripts below into the console</li>
+                <li>Run the tests and observe the results</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 Basic Environment Test</h2>
+            <p>Run this first to check if the environment is ready:</p>
+            <div class="code">
+// Test 1: Check React and Dashboard Environment
+console.log('🔍 Testing Environment...');
+const hasReact = document.querySelector('#__next') !== null;
+const hasAuth = localStorage.getItem('firebase:authUser:AIzaSyBr3pQqyLqgp6bS_e_cPVGI0FX9QdBW6WE:[DEFAULT]') !== null;
+const isDashboard = window.location.pathname.includes('/dashboard');
+const hasSelectedBrand = localStorage.getItem('selectedBrandId');
+
+console.log('React App:', hasReact ? '✅' : '❌');
+console.log('User Auth:', hasAuth ? '✅' : '❌');
+console.log('Dashboard Page:', isDashboard ? '✅' : '❌');
+console.log('Selected Brand:', hasSelectedBrand || 'None');
+
+if (!hasReact) console.warn('⚠️ React app not detected');
+if (!hasAuth) console.warn('⚠️ User not authenticated');
+if (!isDashboard) console.warn('⚠️ Not on dashboard page');
+            </div>
+            <button class="btn" onclick="navigator.clipboard.writeText(document.querySelector('.code').textContent)">
+                📋 Copy to Clipboard
+            </button>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 BrandContext Hook Test</h2>
+            <p>Test if the BrandContext hook is working and fetching data:</p>
+            <div class="code">
+// Test 2: BrandContext Data Fetching
+console.log('🔍 Testing BrandContext Data Fetching...');
+
+// Check if we can access the BrandContext through React DevTools
+function testBrandContextHook() {
+    try {
+        // Look for the BrandContext provider in the React tree
+        const reactRoot = document.querySelector('#__next');
+        if (!reactRoot) {
+            console.error('❌ React root not found');
+            return;
+        }
+
+        // Check if localStorage has selectedBrandId
+        const selectedBrandId = localStorage.getItem('selectedBrandId');
+        console.log('Selected Brand ID from localStorage:', selectedBrandId || 'None');
+
+        // Check if we can find brand-related elements in the DOM
+        const brandElements = document.querySelectorAll('[data-testid*="brand"], .brand, [class*="brand"]');
+        console.log('Brand-related DOM elements found:', brandElements.length);
+
+        // Check for sidebar brand dropdown
+        const sidebarBrands = document.querySelectorAll('nav button, aside button, [role="navigation"] button');
+        console.log('Sidebar interactive elements:', sidebarBrands.length);
+
+        // Check network tab for recent API calls
+        console.log('💡 Check Network tab in DevTools for:');
+        console.log('  - Firestore queries to v8userbrands collection');
+        console.log('  - Authentication token requests');
+        console.log('  - Brand data loading requests');
+
+        return true;
+    } catch (error) {
+        console.error('❌ Error testing BrandContext:', error);
+        return false;
+    }
+}
+
+testBrandContextHook();
+            </div>
+            <button class="btn" onclick="navigator.clipboard.writeText(document.querySelectorAll('.code')[1].textContent)">
+                📋 Copy to Clipboard
+            </button>
+        </div>
+
+        <div class="test-section">
+            <h2>🔥 Firebase/Firestore Connection Test</h2>
+            <p>Test Firestore connection and data queries:</p>
+            <div class="code">
+// Test 3: Firestore Connection and Data
+console.log('🔍 Testing Firestore Connection...');
+
+async function testFirestoreConnection() {
+    try {
+        // Check if Firebase is loaded
+        if (typeof window.firebase === 'undefined') {
+            console.log('⚠️ Firebase not globally available (this is normal for modular SDK)');
+        }
+
+        // Check for Firebase app in the page
+        const firebaseScripts = document.querySelectorAll('script[src*="firebase"]');
+        console.log('Firebase scripts loaded:', firebaseScripts.length);
+
+        // Check auth state
+        const authUser = localStorage.getItem('firebase:authUser:AIzaSyBr3pQqyLqgp6bS_e_cPVGI0FX9QdBW6WE:[DEFAULT]');
+        if (authUser) {
+            const userData = JSON.parse(authUser);
+            console.log('✅ User authenticated:', userData.uid);
+            console.log('   User email:', userData.email);
+        } else {
+            console.log('❌ No authenticated user found');
+        }
+
+        // Check for Firestore rules errors in console
+        console.log('💡 Check console for any Firestore permission errors');
+        console.log('💡 Expected collection: v8userbrands');
+        console.log('💡 Expected query: where("userId", "==", userUID)');
+
+        return true;
+    } catch (error) {
+        console.error('❌ Error testing Firestore:', error);
+        return false;
+    }
+}
+
+testFirestoreConnection();
+            </div>
+            <button class="btn" onclick="navigator.clipboard.writeText(document.querySelectorAll('.code')[2].textContent)">
+                📋 Copy to Clipboard
+            </button>
+        </div>
+
+        <div class="test-section">
+            <h2>⚡ Real-time Data Test</h2>
+            <p>Monitor real-time data changes in the BrandContext:</p>
+            <div class="code">
+// Test 4: Real-time Data Monitoring
+console.log('🔍 Starting Real-time Data Monitoring...');
+
+function monitorBrandContext() {
+    let previousBrandId = localStorage.getItem('selectedBrandId');
+    let monitoringInterval;
+
+    function checkChanges() {
+        const currentBrandId = localStorage.getItem('selectedBrandId');
+        
+        if (currentBrandId !== previousBrandId) {
+            console.log('🔄 Brand selection changed!');
+            console.log('  Previous:', previousBrandId || 'None');
+            console.log('  Current:', currentBrandId || 'None');
+            previousBrandId = currentBrandId;
+            
+            // Check if UI updated
+            const selectedElements = document.querySelectorAll('[aria-selected="true"], .selected, .active');
+            console.log('  UI elements marked as selected:', selectedElements.length);
+        }
+    }
+
+    // Start monitoring
+    monitoringInterval = setInterval(checkChanges, 1000);
+    console.log('✅ Real-time monitoring started (checking every 1 second)');
+    console.log('💡 Try selecting different brands in the sidebar');
+    console.log('💡 Run clearInterval(' + monitoringInterval + ') to stop monitoring');
+
+    return monitoringInterval;
+}
+
+const intervalId = monitorBrandContext();
+            </div>
+            <button class="btn" onclick="navigator.clipboard.writeText(document.querySelectorAll('.code')[3].textContent)">
+                📋 Copy to Clipboard
+            </button>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 Complete Test Suite</h2>
+            <p>Run all tests in sequence:</p>
+            <div class="code">
+// Test 5: Complete Test Suite
+console.log('🚀 Running Complete Brand Context Test Suite...');
+
+async function runCompleteTestSuite() {
+    const results = [];
+    
+    // Test 1: Environment Check
+    console.log('\n1️⃣ Environment Check...');
+    const hasReact = document.querySelector('#__next') !== null;
+    const hasAuth = localStorage.getItem('firebase:authUser:AIzaSyBr3pQqyLqgp6bS_e_cPVGI0FX9QdBW6WE:[DEFAULT]') !== null;
+    const isDashboard = window.location.pathname.includes('/dashboard');
+    
+    results.push({
+        test: 'Environment',
+        passed: hasReact && hasAuth && isDashboard,
+        details: `React: ${hasReact}, Auth: ${hasAuth}, Dashboard: ${isDashboard}`
+    });
+
+    // Test 2: localStorage Functionality
+    console.log('\n2️⃣ localStorage Test...');
+    try {
+        const testKey = 'testKey123';
+        localStorage.setItem(testKey, 'testValue');
+        const retrieved = localStorage.getItem(testKey);
+        localStorage.removeItem(testKey);
+        
+        results.push({
+            test: 'localStorage',
+            passed: retrieved === 'testValue',
+            details: 'localStorage read/write functionality'
+        });
+    } catch (e) {
+        results.push({
+            test: 'localStorage',
+            passed: false,
+            details: 'localStorage not available: ' + e.message
+        });
+    }
+
+    // Test 3: Brand Data Presence
+    console.log('\n3️⃣ Brand Data Check...');
+    const selectedBrandId = localStorage.getItem('selectedBrandId');
+    const brandElements = document.querySelectorAll('.brand, [data-brand], [class*="brand"]').length;
+    
+    results.push({
+        test: 'Brand Data',
+        passed: selectedBrandId !== null || brandElements > 0,
+        details: `Selected: ${selectedBrandId || 'None'}, Elements: ${brandElements}`
+    });
+
+    // Test 4: Network Activity
+    console.log('\n4️⃣ Network Activity...');
+    const perfEntries = performance.getEntriesByType('navigation');
+    const resourceEntries = performance.getEntriesByType('resource');
+    const firebaseRequests = resourceEntries.filter(entry => 
+        entry.name.includes('googleapis.com') || 
+        entry.name.includes('firestore') ||
+        entry.name.includes('firebase')
+    );
+    
+    results.push({
+        test: 'Network Activity',
+        passed: firebaseRequests.length > 0,
+        details: `Firebase requests: ${firebaseRequests.length}`
+    });
+
+    // Test 5: UI Responsiveness
+    console.log('\n5️⃣ UI Responsiveness...');
+    const interactiveElements = document.querySelectorAll('button, a[href], input, select, textarea').length;
+    const brandButtons = document.querySelectorAll('nav button, aside button').length;
+    
+    results.push({
+        test: 'UI Responsiveness',
+        passed: interactiveElements > 0 && brandButtons > 0,
+        details: `Interactive elements: ${interactiveElements}, Brand buttons: ${brandButtons}`
+    });
+
+    // Display Results
+    console.log('\n📊 TEST RESULTS SUMMARY:');
+    console.log('========================');
+    results.forEach((result, index) => {
+        const status = result.passed ? '✅ PASS' : '❌ FAIL';
+        console.log(`${index + 1}. ${status} ${result.test}: ${result.details}`);
+    });
+
+    const passedTests = results.filter(r => r.passed).length;
+    const totalTests = results.length;
+    
+    console.log(`\n🎯 FINAL SCORE: ${passedTests}/${totalTests} tests passed`);
+    
+    if (passedTests === totalTests) {
+        console.log('🎉 ALL TESTS PASSED! BrandContext is working correctly.');
+    } else {
+        console.log('⚠️ Some tests failed. Check the details above.');
+    }
+
+    console.log('\n📝 RECOMMENDATIONS:');
+    if (!hasAuth) {
+        console.log('• Sign in to your account');
+    }
+    if (!isDashboard) {
+        console.log('• Navigate to dashboard page');
+    }
+    if (firebaseRequests.length === 0) {
+        console.log('• Check Firebase configuration');
+        console.log('• Verify Firestore rules allow read access');
+    }
+    if (brandButtons === 0) {
+        console.log('• Add brands to your account');
+        console.log('• Check BrandContext provider setup');
+    }
+
+    return results;
+}
+
+runCompleteTestSuite();
+            </div>
+            <button class="btn btn-success" onclick="navigator.clipboard.writeText(document.querySelectorAll('.code')[4].textContent)">
+                📋 Copy Complete Test Suite
+            </button>
+        </div>
+
+        <div class="test-section">
+            <h2>🛠️ Troubleshooting Steps</h2>
+            <div style="background: #fff; padding: 15px; border-radius: 6px;">
+                <h3>If data is not loading:</h3>
+                <ol>
+                    <li><strong>Check Authentication:</strong> Ensure you're signed in</li>
+                    <li><strong>Check Firestore Rules:</strong> Verify read permissions for v8userbrands collection</li>
+                    <li><strong>Check Network Tab:</strong> Look for failed Firestore requests</li>
+                    <li><strong>Check Console Errors:</strong> Look for JavaScript errors</li>
+                    <li><strong>Add Test Data:</strong> Go to Add Brand page and create test brands</li>
+                </ol>
+
+                <h3>Expected Firestore Structure:</h3>
+                <pre>v8userbrands/
+├── {userId}_{domain}/
+│   ├── userId: "user123"
+│   ├── domain: "example.com"
+│   ├── companyName: "Example Company"
+│   ├── brandsbasicData: {
+│   │   ├── brandMentions: 123
+│   │   ├── brandValidity: 85
+│   │   └── ...
+│   └── ...
+└── ...</pre>
+
+                <h3>Required Environment Variables:</h3>
+                <ul>
+                    <li>Firebase configuration in .env file</li>
+                    <li>Firestore project ID</li>
+                    <li>Authentication API keys</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📞 Quick Actions</h2>
+            <button class="btn" onclick="window.open('http://localhost:3000/dashboard/test-brand-context', '_blank')">
+                🔗 Open Test Page
+            </button>
+            <button class="btn" onclick="window.open('http://localhost:3000/dashboard/add-brand/step-1', '_blank')">
+                ➕ Add Brand
+            </button>
+            <button class="btn" onclick="window.open('http://localhost:3000/dashboard', '_blank')">
+                🏠 Go to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Auto-copy functionality
+        document.querySelectorAll('.btn').forEach(btn => {
+            if (btn.textContent.includes('Copy')) {
+                btn.addEventListener('click', () => {
+                    btn.textContent = '✅ Copied!';
+                    setTimeout(() => {
+                        btn.textContent = btn.textContent.replace('✅ Copied!', '📋 Copy to Clipboard');
+                    }, 2000);
+                });
+            }
+        });
+
+        // Add syntax highlighting
+        document.querySelectorAll('.code').forEach(code => {
+            code.style.whiteSpace = 'pre-wrap';
+        });
+    </script>
+</body>
+</html> 

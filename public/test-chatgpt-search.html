@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT Search Provider Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #000C60;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        button {
+            background: #000C60;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #000A50;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online { background-color: #28a745; }
+        .status-offline { background-color: #dc3545; }
+        .status-unknown { background-color: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 ChatGPT Search Provider Test</h1>
+        
+        <!-- Quick Test Section -->
+        <div class="test-section">
+            <h3>🚀 Quick Test</h3>
+            <p>Test if the ChatGPT Search provider is configured and working:</p>
+            <button onclick="runQuickTest()" id="quickTestBtn">Run Quick Test</button>
+            <div id="quickTestResult"></div>
+        </div>
+
+        <!-- Custom Query Test -->
+        <div class="test-section">
+            <h3>🎯 Custom Query Test</h3>
+            <p>Test with your own query (great for current events or recent information):</p>
+            <input type="text" id="customQuery" placeholder="e.g., What are the latest AI developments this week?" value="What are the latest developments in AI technology this week?">
+            <button onclick="runCustomTest()" id="customTestBtn">Test Custom Query</button>
+            <div id="customTestResult"></div>
+        </div>
+
+        <!-- Provider Status Check -->
+        <div class="test-section">
+            <h3>📊 Provider Status</h3>
+            <p>Check which providers are available:</p>
+            <button onclick="checkProviderStatus()" id="statusBtn">Check Provider Status</button>
+            <div id="statusResult"></div>
+        </div>
+
+        <!-- Sample Queries -->
+        <div class="test-section">
+            <h3>💡 Sample Queries to Try</h3>
+            <p>These queries work best with web search:</p>
+            <button onclick="testSampleQuery('What was the biggest tech news today?')">Today's Tech News</button>
+            <button onclick="testSampleQuery('Latest iPhone vs Samsung Galaxy comparison 2024')">Phone Comparison</button>
+            <button onclick="testSampleQuery('Current AI startup funding trends')">AI Funding Trends</button>
+            <button onclick="testSampleQuery('Recent developments in quantum computing')">Quantum Computing News</button>
+        </div>
+    </div>
+
+    <script>
+        async function runQuickTest() {
+            const btn = document.getElementById('quickTestBtn');
+            const result = document.getElementById('quickTestResult');
+            
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            result.innerHTML = '<div class="result loading">🔄 Running quick test...</div>';
+            
+            try {
+                const response = await fetch('/api/test-chatgptsearch');
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.innerHTML = `
+                        <div class="result success">
+                            ✅ <strong>Success!</strong> ChatGPT Search provider is working correctly!
+                            
+                            <strong>Test Results:</strong>
+                            • Provider: ${data.testResults.providerId}
+                            • Status: ${data.testResults.status}
+                            • Response Time: ${data.testResults.responseTime}ms
+                            • Cost: $${data.testResults.cost.toFixed(6)}
+                            • Model: ${data.testResults.model}
+                            • Web Search Used: ${data.testResults.webSearchUsed ? 'Yes' : 'No'}
+                            • Response Length: ${data.testResults.responseLength} characters
+                            
+                            <strong>Response Preview:</strong>
+                            ${data.testResults.responsePreview}
+                            
+                            <strong>Available Providers:</strong>
+                            ${data.availableProviders.join(', ')}
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="result error">
+                            ❌ <strong>Test Failed!</strong>
+                            
+                            <strong>Error:</strong> ${data.error}
+                            ${data.errorDetails ? `\n<strong>Details:</strong> ${data.errorDetails}` : ''}
+                            ${data.message ? `\n<strong>Message:</strong> ${data.message}` : ''}
+                            
+                            <strong>Available Providers:</strong>
+                            ${data.availableProviders ? data.availableProviders.join(', ') : 'None'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `
+                    <div class="result error">
+                        ❌ <strong>Network Error!</strong>
+                        
+                        Error: ${error.message}
+                        
+                        Make sure your development server is running.
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run Quick Test';
+            }
+        }
+
+        async function runCustomTest() {
+            const btn = document.getElementById('customTestBtn');
+            const result = document.getElementById('customTestResult');
+            const query = document.getElementById('customQuery').value;
+            
+            if (!query.trim()) {
+                result.innerHTML = '<div class="result error">❌ Please enter a query to test.</div>';
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            result.innerHTML = '<div class="result loading">🔄 Testing your custom query...</div>';
+            
+            try {
+                const response = await fetch('/api/test-chatgptsearch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.innerHTML = `
+                        <div class="result success">
+                            ✅ <strong>Custom Query Test Successful!</strong>
+                            
+                            <strong>Query:</strong> "${data.query}"
+                            
+                            <strong>Results:</strong>
+                            • Provider: ${data.result.providerId}
+                            • Status: ${data.result.status}
+                            • Response Time: ${data.result.responseTime}ms
+                            • Cost: $${data.result.cost.toFixed(6)}
+                            • Model: ${data.result.data?.model || 'N/A'}
+                            • Web Search Used: ${data.result.data?.webSearchUsed ? 'Yes' : 'No'}
+                            
+                            <strong>Response:</strong>
+                            ${data.result.data?.content || 'No content available'}
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="result error">
+                            ❌ <strong>Custom Query Test Failed!</strong>
+                            
+                            <strong>Query:</strong> "${data.query}"
+                            <strong>Error:</strong> ${data.error || 'Unknown error'}
+                            ${data.result?.error ? `\n<strong>Provider Error:</strong> ${data.result.error}` : ''}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `
+                    <div class="result error">
+                        ❌ <strong>Network Error!</strong>
+                        
+                        Error: ${error.message}
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Test Custom Query';
+            }
+        }
+
+        async function testSampleQuery(query) {
+            document.getElementById('customQuery').value = query;
+            await runCustomTest();
+        }
+
+        async function checkProviderStatus() {
+            const btn = document.getElementById('statusBtn');
+            const result = document.getElementById('statusResult');
+            
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+            result.innerHTML = '<div class="result loading">🔄 Checking provider status...</div>';
+            
+            try {
+                const response = await fetch('/api/test-chatgptsearch');
+                const data = await response.json();
+                
+                const providers = data.availableProviders || [];
+                const hasSearchProvider = providers.includes('chatgptsearch');
+                
+                result.innerHTML = `
+                    <div class="result ${hasSearchProvider ? 'success' : 'error'}">
+                        <strong>Provider Status:</strong>
+                        
+                        ${providers.map(provider => {
+                            const isSearch = provider === 'chatgptsearch';
+                            const statusClass = isSearch ? 'status-online' : 'status-unknown';
+                            const statusText = isSearch ? '(Web Search Enabled)' : '';
+                            return `• <span class="status-indicator ${statusClass}"></span>${provider} ${statusText}`;
+                        }).join('\n')}
+                        
+                        <strong>Total Providers:</strong> ${providers.length}
+                        <strong>ChatGPT Search Available:</strong> ${hasSearchProvider ? 'Yes ✅' : 'No ❌'}
+                        
+                        ${!hasSearchProvider ? '\n⚠️ Make sure OPENAI_API_KEY is set in your .env file' : ''}
+                    </div>
+                `;
+            } catch (error) {
+                result.innerHTML = `
+                    <div class="result error">
+                        ❌ <strong>Status Check Failed!</strong>
+                        
+                        Error: ${error.message}
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Check Provider Status';
+            }
+        }
+    </script>
+</body>
+</html> 

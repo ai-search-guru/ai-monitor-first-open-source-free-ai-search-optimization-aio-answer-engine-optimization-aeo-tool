@@ -100,7 +100,93 @@ You should now be setup to use Firebase.
 
 ## Authentication
 
-- In `src/firebase` directory, exists the directory `auth` containing the logic for `signin` and `signup`.
+The application includes comprehensive authentication and route protection:
+
+### Firebase Authentication Setup
+- In `src/firebase/auth` directory contains the logic for `signin`, `signup`, `signOut`, and `googleSignIn`
+- Uses Firebase Auth for user management with email/password and Google OAuth
+
+### Route Protection
+- **Dashboard routes**: All `/dashboard/*` routes are protected and require authentication
+- **Client-side protection**: Uses `AuthContext` and `ProtectedRoute` component for client-side route guards
+- **API protection**: Optional server-side protection using middleware and token verification
+- **Admin routes**: Special protection for admin-only pages using email whitelist
+
+### Authentication Components
+- `AuthContext`: Provides authentication state across the application
+- `ProtectedRoute`: Reusable component for protecting routes
+- `AuthStatus`: Shows current authentication status with sign-out functionality
+
+### Usage Examples
+
+```tsx
+// Protect a route
+<ProtectedRoute>
+  <YourComponent />
+</ProtectedRoute>
+
+// Protect admin routes
+<ProtectedRoute 
+  requireAdmin={true} 
+  adminEmails={['admin@example.com']}
+>
+  <AdminPanel />
+</ProtectedRoute>
+
+// Check auth status
+const { user, loading } = useAuthContext();
+```
+
+### Security Features
+- Automatic redirection to sign-in for unauthenticated users
+- Loading states during authentication checks
+- Admin role verification
+- Firestore security rules (see `firestore.rules`)
+
+## AI Provider Configuration
+
+This application uses a multi-provider AI system with Azure OpenAI as the primary provider and Google Gemini as fallback. This ensures high availability and cost optimization.
+
+### Azure OpenAI Configuration (Primary Provider)
+
+1. Create an Azure OpenAI resource in the Azure portal
+2. Deploy a GPT-4 model in your Azure OpenAI service
+3. Add the following environment variables to your `.env` file:
+
+```md
+AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
+AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com
+AZURE_OPENAI_DEPLOYMENT=gpt-4
+AZURE_OPENAI_API_VERSION=2024-02-01
+```
+
+### Google Gemini Configuration (Fallback Provider)
+
+1. Get a Google AI API key from the [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Add the following environment variable to your `.env` file:
+
+```md
+GOOGLE_AI_API_KEY=your_google_ai_api_key_here
+# or alternatively
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+### How the Fallback System Works
+
+- **Primary**: Azure OpenAI is attempted first for all AI requests
+- **Fallback**: If Azure OpenAI fails or is unavailable, the system automatically falls back to Google Gemini
+- **Monitoring**: All provider responses, costs, and response times are logged for monitoring
+- **Cost Tracking**: The system tracks costs across providers to help optimize usage
+
+### Testing the AI Providers
+
+You can test the AI provider configuration by running:
+
+```bash
+node test-company-info.js
+```
+
+This will test the company information extraction API with sample domains and show which providers are being used.
 
 ## Folder Structure
 

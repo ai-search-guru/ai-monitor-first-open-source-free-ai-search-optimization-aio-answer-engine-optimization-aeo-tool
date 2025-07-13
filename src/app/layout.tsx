@@ -1,4 +1,7 @@
+import React from 'react';
 import { AuthContextProvider } from '@/context/AuthContext';
+import { ThemeProvider } from '@/context/ThemeContext';
+import { BrandContextProvider } from '@/context/BrandContext';
 import { Inter } from 'next/font/google';
 import './globals.css';
 
@@ -7,25 +10,28 @@ const inter = Inter( { subsets: [ 'latin' ] } );
 
 // Metadata for the application
 export const metadata = {
-  title: 'Next.js + Firebase Starter',
-  description: 'Template to use Next.js with Firebase',
+  title: 'AI Monitor Dashboard',
+  description: 'Intelligent brand analysis and query optimization platform',
 };
 
 // Root layout component for the application
-export default function RootLayout( { children }: { children: React.ReactNode } ): JSX.Element {
+export default function RootLayout( { children }: { children: React.ReactNode } ): React.ReactElement {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       {/*
         The <head /> component will contain the components returned by the nearest parent
         head.js. It can be used to define the document head for SEO, metadata, and other purposes.
         Learn more at https://beta.nextjs.org/docs/api-reference/file-conventions/head
       */}
       <head />
-      <body>
-        {/* Wrap the children with the AuthContextProvider to provide authentication context */}
-        <AuthContextProvider>
-          {children}
-        </AuthContextProvider>
+      <body className={`${inter.className} antialiased`} suppressHydrationWarning>
+        <ThemeProvider>
+          <AuthContextProvider>
+            <BrandContextProvider>
+              {children}
+            </BrandContextProvider>
+          </AuthContextProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

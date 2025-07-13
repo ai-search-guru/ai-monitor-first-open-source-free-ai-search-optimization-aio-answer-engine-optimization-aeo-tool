@@ -1,0 +1,1246 @@
+'use client'
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { useBrandContext } from '@/context/BrandContext';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import QueriesOverview from '@/components/features/QueriesOverview';
+import { useAuthContext } from '@/context/AuthContext';
+import { doc, updateDoc, arrayUnion, getFirestore } from 'firebase/firestore';
+import firebase_app from '@/firebase/config';
+import WebLogo from '@/components/shared/WebLogo';
+import { 
+  Search, 
+  RefreshCw,
+  AlertCircle,
+  X
+} from 'lucide-react';
+
+const db = getFirestore(firebase_app);
+
+// Simple markdown renderer component
+function MarkdownRenderer({ content }: { content: string }) {
+  const renderMarkdown = (text: string) => {
+    if (!text) return text;
+    
+    // Convert markdown to HTML-like JSX
+    let processed = text;
+    
+    // Handle code blocks first (```code```)
+    processed = processed.replace(/```([^`]+)```/g, '<pre class="bg-gray-100 border border-gray-200 rounded-lg p-4 overflow-x-auto my-4"><code class="text-sm text-gray-800">$1</code></pre>');
+    
+    // Handle inline code (`code`)
+    processed = processed.replace(/`([^`]+)`/g, '<code class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono">$1</code>');
+    
+    // Handle bold (**text** or __text__)
+    processed = processed.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>');
+    processed = processed.replace(/__([^_]+)__/g, '<strong class="font-semibold text-gray-900">$1</strong>');
+    
+    // Handle italic (*text* or _text_)
+    processed = processed.replace(/\*([^*]+)\*/g, '<em class="italic text-gray-700">$1</em>');
+    processed = processed.replace(/_([^_]+)_/g, '<em class="italic text-gray-700">$1</em>');
+    
+    // Handle links [text](url)
+    processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium">$1</a>');
+    
+    // Handle headers (# ## ###)
+    processed = processed.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3 border-b border-gray-200 pb-2">$1</h3>');
+    processed = processed.replace(/^## (.+)$/gm, '<h2 class="text-xl font-semibold text-gray-900 mt-6 mb-3 border-b border-gray-200 pb-2">$1</h2>');
+    processed = processed.replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold text-gray-900 mt-6 mb-4 border-b border-gray-200 pb-2">$1</h1>');
+    
+    // Handle numbered lists (1. 2. 3.)
+    const lines = processed.split('\n');
+    let inOrderedList = false;
+    let inUnorderedList = false;
+    const processedLines = lines.map(line => {
+      const isNumberedBullet = /^\d+\.\s+(.+)$/.test(line.trim());
+      const isUnorderedBullet = /^[-*]\s+(.+)$/.test(line.trim());
+      
+      if (isNumberedBullet && !inOrderedList) {
+        inUnorderedList = false;
+        inOrderedList = true;
+        return '<ol class="list-decimal list-inside space-y-2 my-4 ml-4">\n<li class="text-gray-700 leading-relaxed">' + line.replace(/^\d+\.\s+(.+)$/, '$1') + '</li>';
+      } else if (isNumberedBullet && inOrderedList) {
+        return '<li class="text-gray-700 leading-relaxed">' + line.replace(/^\d+\.\s+(.+)$/, '$1') + '</li>';
+      } else if (isUnorderedBullet && !inUnorderedList) {
+        inOrderedList = false;
+        inUnorderedList = true;
+        return '<ul class="list-disc list-inside space-y-2 my-4 ml-4">\n<li class="text-gray-700 leading-relaxed">' + line.replace(/^[-*]\s+(.+)$/, '$1') + '</li>';
+      } else if (isUnorderedBullet && inUnorderedList) {
+        return '<li class="text-gray-700 leading-relaxed">' + line.replace(/^[-*]\s+(.+)$/, '$1') + '</li>';
+      } else if (!isNumberedBullet && !isUnorderedBullet && inOrderedList) {
+        inOrderedList = false;
+        return '</ol>\n' + line;
+      } else if (!isNumberedBullet && !isUnorderedBullet && inUnorderedList) {
+        inUnorderedList = false;
+        return '</ul>\n' + line;
+      }
+      
+      return line;
+    });
+    
+    if (inOrderedList) {
+      processedLines.push('</ol>');
+    }
+    if (inUnorderedList) {
+      processedLines.push('</ul>');
+    }
+    
+    processed = processedLines.join('\n');
+    
+    // Handle line breaks and paragraphs
+    processed = processed.replace(/\n\n/g, '</p><p class="mb-4 text-gray-700 leading-relaxed">');
+    processed = processed.replace(/\n/g, '<br/>');
+    
+    // Wrap in paragraph if not already wrapped
+    if (!processed.startsWith('<')) {
+      processed = '<p class="mb-4 text-gray-700 leading-relaxed">' + processed + '</p>';
+    }
+    
+    return processed;
+  };
+
+  const htmlContent = renderMarkdown(content);
+  
+  return (
+    <div 
+      className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-gray-800 prose-pre:bg-gray-100 prose-a:text-blue-600"
+      dangerouslySetInnerHTML={{ __html: htmlContent }}
+    />
+  );
+}
+
+interface GeneratedQuery {
+  keyword: string;
+  query: string;
+  category: 'Awareness' | 'Interest' | 'Consideration' | 'Purchase';
+  containsBrand: 0 | 1;
+}
+
+interface AIResponseModalProps {
+  selectedQuery: any;
+  onClose: () => void;
+}
+
+function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
+  const [activeTab, setActiveTab] = useState<'chatgpt' | 'google' | 'perplexity'>('chatgpt');
+  const [activeSubTab, setActiveSubTab] = useState<'response' | 'citations'>('response');
+  
+  // Get available providers
+  const availableProviders: ('chatgpt' | 'google' | 'perplexity')[] = [];
+  if (selectedQuery.results.chatgpt) availableProviders.push('chatgpt');
+  if (selectedQuery.results.googleAI) availableProviders.push('google');
+  if (selectedQuery.results.perplexity) availableProviders.push('perplexity');
+  
+  // Provider-specific citation extraction functions
+  const extractChatGPTCitations = (text: string): { url: string; text: string; source?: string }[] => {
+    if (!text) return [];
+    
+    const citations: { url: string; text: string; source?: string }[] = [];
+    const seen = new Set<string>();
+    
+    // Extract markdown links [text](url)
+    const markdownLinks = text.match(/\[([^\]]+)\]\(([^)]+)\)/g) || [];
+    markdownLinks.forEach(link => {
+      const match = link.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && match[2] && match[2].trim() && !seen.has(match[2])) {
+        citations.push({ text: match[1] || match[2], url: match[2].trim() });
+        seen.add(match[2]);
+      }
+    });
+    
+    // Extract plain URLs
+    const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
+    const urls = text.match(urlRegex) || [];
+    urls.forEach(url => {
+      if (url && url.trim() && !seen.has(url)) {
+        citations.push({ text: url, url: url.trim() });
+        seen.add(url);
+      }
+    });
+    
+    // Extract domain references like (time.com), (arxiv.org), etc.
+    const domainPattern = /\(([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\)/g;
+    let domainMatch;
+    while ((domainMatch = domainPattern.exec(text)) !== null) {
+      const domain = domainMatch[1];
+      if (domain && domain.trim()) {
+        const url = `https://${domain}`;
+        if (!seen.has(url)) {
+          citations.push({ text: domain, url });
+          seen.add(url);
+        }
+      }
+    }
+    
+    // Extract new citation format: (source=openai" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium">domain.com)
+    const newFormatRegex = /\(source=([^"]+)"[^>]*>([^)]+)\)/g;
+    let match;
+    while ((match = newFormatRegex.exec(text)) !== null) {
+      const source = match[1];
+      const domain = match[2];
+      if (domain && domain.trim()) {
+        const url = domain.startsWith('http') ? domain : `https://${domain}`;
+        if (!seen.has(url)) {
+          citations.push({ text: domain, url, source });
+          seen.add(url);
+        }
+      }
+    }
+    
+    // Extract citations from paragraph endings - handles cases where citations appear at the end of paragraphs
+    const paragraphCitationPattern = /\.\s*\(([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\)/g;
+    while ((match = paragraphCitationPattern.exec(text)) !== null) {
+      const domain = match[1];
+      if (domain && domain.trim()) {
+        const url = `https://${domain}`;
+        if (!seen.has(url)) {
+          citations.push({ text: domain, url });
+          seen.add(url);
+        }
+      }
+    }
+    
+    return citations;
+  };
+
+  const extractGoogleCitations = (text: string): { url: string; text: string; source?: string }[] => {
+    if (!text) return [];
+    
+    const citations: { url: string; text: string; source?: string }[] = [];
+    const seen = new Set<string>();
+    
+    // Extract markdown links [text](url)
+    const markdownLinks = text.match(/\[([^\]]+)\]\(([^)]+)\)/g) || [];
+    markdownLinks.forEach(link => {
+      const match = link.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && match[2] && match[2].trim() && !seen.has(match[2])) {
+        citations.push({ text: match[1] || match[2], url: match[2].trim() });
+        seen.add(match[2]);
+      }
+    });
+    
+    // Extract plain URLs
+    const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
+    const urls = text.match(urlRegex) || [];
+    urls.forEach(url => {
+      if (url && url.trim() && !seen.has(url)) {
+        citations.push({ text: url, url: url.trim() });
+        seen.add(url);
+      }
+    });
+    
+    return citations;
+  };
+
+  const extractPerplexityCitations = (text: string): { url: string; text: string; source?: string }[] => {
+    if (!text) return [];
+    
+    const citations: { url: string; text: string; source?: string }[] = [];
+    const seen = new Set<string>();
+    
+    // Extract Perplexity-style citations [1], [2], etc. with context
+    const perplexityMatches = text.match(/\[(\d+)\]/g) || [];
+    const citationNumbers = perplexityMatches.map(match => match.match(/\[(\d+)\]/)![1]);
+    
+    // Extract markdown links [text](url)
+    const markdownLinks = text.match(/\[([^\]]+)\]\(([^)]+)\)/g) || [];
+    markdownLinks.forEach(link => {
+      const match = link.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match && !seen.has(match[2])) {
+        citations.push({ text: match[1], url: match[2] });
+        seen.add(match[2]);
+      }
+    });
+    
+    // Extract plain URLs
+    const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
+    const urls = text.match(urlRegex) || [];
+    urls.forEach(url => {
+      if (!seen.has(url)) {
+        citations.push({ text: url, url });
+        seen.add(url);
+      }
+    });
+    
+    // Extract domain references like (time.com), (arxiv.org), etc.
+    const domainPattern = /\(([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\)/g;
+    let domainMatch;
+    while ((domainMatch = domainPattern.exec(text)) !== null) {
+      const domain = domainMatch[1];
+      const url = `https://${domain}`;
+      if (!seen.has(url)) {
+        citations.push({ text: domain, url });
+        seen.add(url);
+      }
+    }
+    
+    // Extract new citation format: (source=openai" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium">domain.com)
+    const newFormatRegex = /\(source=([^"]+)"[^>]*>([^)]+)\)/g;
+    let match;
+    while ((match = newFormatRegex.exec(text)) !== null) {
+      const source = match[1];
+      const domain = match[2];
+      const url = domain.startsWith('http') ? domain : `https://${domain}`;
+      if (!seen.has(url)) {
+        citations.push({ text: domain, url, source });
+        seen.add(url);
+      }
+    }
+    
+    // Extract citations from paragraph endings - handles cases where citations appear at the end of paragraphs
+    const paragraphCitationPattern = /\.\s*\(([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\)/g;
+    while ((match = paragraphCitationPattern.exec(text)) !== null) {
+      const domain = match[1];
+      const url = `https://${domain}`;
+      if (!seen.has(url)) {
+        citations.push({ text: domain, url });
+        seen.add(url);
+      }
+    }
+    
+    return citations;
+  };
+
+  // Function to get citation counts for each provider
+  const getCitationCounts = () => {
+    const chatgptCitations = extractChatGPTCitations(selectedQuery.results.chatgpt?.response || '');
+    const googleCitations = extractGoogleCitations(selectedQuery.results.googleAI?.aiOverview || '');
+    const perplexityCitations = extractPerplexityCitations(selectedQuery.results.perplexity?.response || '');
+    
+    return {
+      chatgpt: chatgptCitations.length,
+      google: googleCitations.length,
+      perplexity: perplexityCitations.length
+    };
+  };
+  
+  const citationCounts = getCitationCounts();
+  
+  // Set default active tab to first available provider
+  React.useEffect(() => {
+    if (availableProviders.length > 0) {
+      setActiveTab(availableProviders[0] as 'chatgpt' | 'google' | 'perplexity');
+    }
+  }, [selectedQuery]);
+
+  // Reset sub-tab when switching main tabs
+  React.useEffect(() => {
+    setActiveSubTab('response');
+  }, [activeTab]);
+
+  const getProviderIcon = (provider: string) => {
+    switch (provider) {
+      case 'chatgpt':
+        return (
+          <svg stroke="currentColor" fill="currentColor" strokeWidth="0" role="img" viewBox="0 0 24 24" className="w-5 h-5 text-foreground transition-all duration-200" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"></path>
+          </svg>
+        );
+      case 'google':
+        return (
+          <svg stroke="currentColor" fill="currentColor" strokeWidth="0" version="1.1" x="0px" y="0px" viewBox="0 0 48 48" enableBackground="new 0 0 48 48" className="w-5 h-5 transition-all duration-200" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12
+	c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24
+	c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
+            <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657
+	C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
+            <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36
+	c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
+            <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571
+	c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
+          </svg>
+        );
+      case 'perplexity':
+        return (
+          <svg stroke="currentColor" fill="currentColor" strokeWidth="0" role="img" viewBox="0 0 24 24" className="w-5 h-5 text-foreground transition-all duration-200" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.3977 7.0896h-2.3106V.0676l-7.5094 6.3542V.1577h-1.1554v6.1966L4.4904 0v7.0896H1.6023v10.3976h2.8882V24l6.932-6.3591v6.2005h1.1554v-6.0469l6.9318 6.1807v-6.4879h2.8882V7.0896zm-3.4657-4.531v4.531h-5.355l5.355-4.531zm-13.2862.0676 4.8691 4.4634H5.6458V2.6262zM2.7576 16.332V8.245h7.8476l-6.1149 6.1147v1.9723H2.7576zm2.8882 5.0404v-3.8852h.0001v-2.6488l5.7763-5.7764v7.0111l-5.7764 5.2993zm12.7086.0248-5.7766-5.1509V9.0618l5.7766 5.7766v6.5588zm2.8882-5.0652h-1.733v-1.9723L13.3948 8.245h7.8478v8.087z"></path>
+          </svg>
+        );
+      default:
+        return '🤖';
+    }
+  };
+
+  const getProviderName = (provider: string) => {
+    switch (provider) {
+      case 'chatgpt':
+        return 'ChatGPT';
+      case 'google':
+        return 'Google AIO';
+      case 'perplexity':
+        return 'Perplexity';
+      default:
+        return provider;
+    }
+  };
+
+  const getProviderColor = (provider: string) => {
+    switch (provider) {
+      case 'chatgpt':
+        return 'bg-green-500';
+      case 'google':
+        return 'bg-blue-500';
+      case 'perplexity':
+        return 'bg-purple-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  const renderContent = () => {
+    const renderSubTabs = () => (
+      <div className="border-b border-gray-100 mb-6">
+        <div className="flex space-x-0">
+          <button
+            onClick={() => setActiveSubTab('response')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeSubTab === 'response'
+                ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Response
+          </button>
+          <button
+            onClick={() => setActiveSubTab('citations')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeSubTab === 'citations'
+                ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Citations ({citationCounts[activeTab]})
+          </button>
+        </div>
+      </div>
+    );
+
+    const renderChatGPTResponse = () => (
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-sm font-semibold text-gray-700">Response Content</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm font-semibold text-gray-700">Web Search Enabled</span>
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="prose prose-gray max-w-none">
+            <MarkdownRenderer content={selectedQuery.results.chatgpt.response || 'No response available'} />
+          </div>
+        </div>
+      </div>
+    );
+
+    const renderChatGPTCitations = () => {
+      const links = extractChatGPTCitations(selectedQuery.results.chatgpt?.response || '');
+      
+      return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-sm font-semibold text-gray-700">Web References ({links.length})</span>
+            </div>
+          </div>
+          <div className="p-6">
+            {links.length > 0 ? (
+              <div className="space-y-3">
+                {links.map((link, index) => (
+                  <div key={index} className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold text-blue-700">{index + 1}</span>
+                    </div>
+                    <div className="flex-shrink-0">
+                      {link.url && <WebLogo domain={link.url} className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <a 
+                        href={link.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-600 hover:text-blue-800 font-medium text-sm block truncate"
+                        title={link.text}
+                      >
+                        {link.text}
+                      </a>
+                      <p className="text-xs text-gray-500 mt-1 truncate">{link.url}</p>
+                      {link.source && (
+                        <p className="text-xs text-blue-600 mt-1">Source: {link.source}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-medium text-gray-900 mb-2">No Links Found</h3>
+                <p className="text-xs text-gray-600">No web references were found in the response content</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const renderGoogleResponse = () => {
+      // Check for AI Overview presence in multiple ways
+      const hasAIOverview = selectedQuery.results.googleAI.hasAIOverview || 
+                           selectedQuery.results.googleAI.aiOverview || 
+                           (selectedQuery.results.googleAI.aiOverviewItems && selectedQuery.results.googleAI.aiOverviewItems.length > 0);
+      
+      return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          {hasAIOverview ? (
+            <div className="p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-semibold text-green-700">AI Overview Invoked</span>
+              </div>
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-400 p-4 rounded-lg mb-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm font-medium text-green-800">Google's AI Overview was triggered for this search query</span>
+                </div>
+                <p className="text-green-700 text-xs">
+                  This indicates that Google determined the query would benefit from an AI-generated summary.
+                </p>
+              </div>
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-400 p-4 rounded-lg">
+                <MarkdownRenderer content={selectedQuery.results.googleAI.aiOverview} />
+              </div>
+            </div>
+          ) : (
+            <div className="p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                <span className="text-sm font-semibold text-orange-700">AI Overview Not Invoked</span>
+              </div>
+              <div className="bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-orange-400 p-4 rounded-lg mb-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <span className="text-sm font-medium text-orange-800">Google's AI Overview was not triggered for this query</span>
+                </div>
+                <p className="text-orange-800 text-sm mb-3">
+                  This could be because:
+                </p>
+                <ul className="text-orange-700 text-sm ml-4 list-disc space-y-1">
+                  <li>The query doesn't meet Google's AI Overview criteria</li>
+                  <li>AI Overview is not available for this search location</li>
+                  <li>The query type doesn't trigger AI-generated responses</li>
+                  <li>Google determined traditional search results are more appropriate</li>
+                </ul>
+              </div>
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                <span className="text-sm font-semibold text-gray-700">Search Results Summary</span>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                  <div className="text-2xl font-bold text-blue-700">{selectedQuery.results.googleAI.totalItems || 0}</div>
+                  <div className="text-sm text-blue-600 font-medium">Total Results</div>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                  <div className="text-2xl font-bold text-green-700">{selectedQuery.results.googleAI.organicResultsCount || selectedQuery.results.googleAI.organicResults?.length || 0}</div>
+                  <div className="text-sm text-green-600 font-medium">Organic Results</div>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
+                  <div className="text-2xl font-bold text-purple-700">{selectedQuery.results.googleAI.peopleAlsoAskCount || selectedQuery.results.googleAI.peopleAlsoAsk?.length || 0}</div>
+                  <div className="text-sm text-purple-600 font-medium">People Also Ask</div>
+                </div>
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-lg border border-gray-200">
+                  <div className="text-lg font-bold text-gray-700">{selectedQuery.results.googleAI.location || 'Global'}</div>
+                  <div className="text-sm text-gray-600 font-medium">Location</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const renderGoogleCitations = () => {
+      const links = extractGoogleCitations(selectedQuery.results.googleAI?.aiOverview || '');
+      
+      return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+              <span className="text-sm font-semibold text-gray-700">Sources & Links ({links.length})</span>
+            </div>
+          </div>
+          <div className="p-6">
+            {links.length > 0 ? (
+              <div className="space-y-3">
+                {links.map((link, index) => (
+                  <div key={index} className="flex items-start space-x-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <div className="flex-shrink-0 w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold text-indigo-700">{index + 1}</span>
+                    </div>
+                    <div className="flex-shrink-0">
+                      {link.url && <WebLogo domain={link.url} className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <a 
+                        href={link.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-indigo-600 hover:text-indigo-800 font-medium text-sm block truncate"
+                        title={link.text}
+                      >
+                        {link.text}
+                      </a>
+                      <p className="text-xs text-gray-500 mt-1 truncate">{link.url}</p>
+                      {link.source && (
+                        <p className="text-xs text-indigo-600 mt-1">Source: {link.source}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div>
+                {selectedQuery.results.googleAI.serpFeatures && selectedQuery.results.googleAI.serpFeatures.length > 0 ? (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">SERP Features</h4>
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      {selectedQuery.results.googleAI.serpFeatures.map((feature: string, index: number) => (
+                        <span key={index} className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                  </div>
+                  <h3 className="text-sm font-medium text-gray-900 mb-2">No Links Found</h3>
+                  <p className="text-xs text-gray-600">No web references were found in the AI Overview content</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const renderPerplexityResponse = () => (
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              <span className="text-sm font-semibold text-gray-700">AI Response</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm font-semibold text-gray-700">Real-time Data</span>
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="prose prose-gray max-w-none">
+            <MarkdownRenderer content={selectedQuery.results.perplexity.response || 'No response available'} />
+          </div>
+        </div>
+      </div>
+    );
+
+    const renderPerplexityCitations = () => {
+      const links = extractPerplexityCitations(selectedQuery.results.perplexity?.response || '');
+      
+      return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              <span className="text-sm font-semibold text-purple-700">Sources & Citations ({links.length})</span>
+            </div>
+          </div>
+          <div className="p-6">
+            {links.length > 0 ? (
+              <div className="space-y-3">
+                {links.map((link, index) => (
+                  <div key={index} className="flex items-start space-x-3 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                    <div className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold text-purple-700">{index + 1}</span>
+                    </div>
+                    <div className="flex-shrink-0">
+                      {link.url && <WebLogo domain={link.url} className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <a 
+                        href={link.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-purple-600 hover:text-purple-800 font-medium text-sm block truncate"
+                        title={link.text}
+                      >
+                        {link.text}
+                      </a>
+                      <p className="text-xs text-gray-500 mt-1 truncate">{link.url}</p>
+                      {link.source && (
+                        <p className="text-xs text-purple-600 mt-1">Source: {link.source}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16l4-2 4 2 4-2 4 2V4l-4 2-4-2-4 2-4-2z" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-medium text-gray-900 mb-2">No Links Found</h3>
+                <p className="text-xs text-gray-600">No citations were found in the response content</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    switch (activeTab) {
+      case 'chatgpt':
+        return selectedQuery.results.chatgpt ? (
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <svg stroke="currentColor" fill="currentColor" strokeWidth="0" role="img" viewBox="0 0 24 24" className="w-8 h-8 text-gray-700" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"></path>
+              </svg>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">ChatGPT Search</h3>
+                <p className="text-sm text-gray-600">AI-powered search with web access</p>
+              </div>
+              <div className="flex items-center space-x-2 ml-auto">
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  Brand Mention
+                </span>
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                  Web Search
+                </span>
+                <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                  Positive
+                </span>
+              </div>
+            </div>
+            
+            {renderSubTabs()}
+            {activeSubTab === 'response' ? renderChatGPTResponse() : renderChatGPTCitations()}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+              <svg stroke="currentColor" fill="currentColor" strokeWidth="0" role="img" viewBox="0 0 24 24" className="w-8 h-8 text-gray-400" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"></path>
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No ChatGPT Search Data</h3>
+            <p className="text-gray-600">This query hasn't been processed with ChatGPT Search yet.</p>
+          </div>
+        );
+
+      case 'google':
+        return selectedQuery.results.googleAI ? (
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <svg stroke="currentColor" fill="currentColor" strokeWidth="0" version="1.1" x="0px" y="0px" viewBox="0 0 48 48" enableBackground="new 0 0 48 48" className="w-8 h-8" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12
+	c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24
+	c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
+                <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657
+	C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
+                <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36
+	c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
+                <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571
+	c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
+              </svg>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Google AI Overview</h3>
+                <p className="text-sm text-gray-600">Search results with AI-powered insights</p>
+              </div>
+              <div className="flex items-center space-x-2 ml-auto">
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  Brand Mention
+                </span>
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                  SERP Data
+                </span>
+              </div>
+            </div>
+            
+            {renderSubTabs()}
+            {activeSubTab === 'response' ? renderGoogleResponse() : renderGoogleCitations()}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+              <svg stroke="currentColor" fill="currentColor" strokeWidth="0" version="1.1" x="0px" y="0px" viewBox="0 0 48 48" enableBackground="new 0 0 48 48" className="w-8 h-8" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#9CA3AF" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12
+	c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24
+	c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Google AI Overview Data</h3>
+            <p className="text-gray-600">This query hasn't been processed with Google AI Overview yet.</p>
+          </div>
+        );
+
+      case 'perplexity':
+        return selectedQuery.results.perplexity ? (
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <svg stroke="currentColor" fill="currentColor" strokeWidth="0" role="img" viewBox="0 0 24 24" className="w-8 h-8 text-gray-700" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.3977 7.0896h-2.3106V.0676l-7.5094 6.3542V.1577h-1.1554v6.1966L4.4904 0v7.0896H1.6023v10.3976h2.8882V24l6.932-6.3591v6.2005h1.1554v-6.0469l6.9318 6.1807v-6.4879h2.8882V7.0896zm-3.4657-4.531v4.531h-5.355l5.355-4.531zm-13.2862.0676 4.8691 4.4634H5.6458V2.6262zM2.7576 16.332V8.245h7.8476l-6.1149 6.1147v1.9723H2.7576zm2.8882 5.0404v-3.8852h.0001v-2.6488l5.7763-5.7764v7.0111l-5.7764 5.2993zm12.7086.0248-5.7766-5.1509V9.0618l5.7766 5.7766v6.5588zm2.8882-5.0652h-1.733v-1.9723L13.3948 8.245h7.8478v8.087z"></path>
+              </svg>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Perplexity AI</h3>
+                <p className="text-sm text-gray-600">Real-time AI search with citations</p>
+              </div>
+              <div className="flex items-center space-x-2 ml-auto">
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  Brand Mention
+                </span>
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                  Real-time
+                </span>
+                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                  Citations
+                </span>
+              </div>
+            </div>
+            
+            {renderSubTabs()}
+            {activeSubTab === 'response' ? renderPerplexityResponse() : renderPerplexityCitations()}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+              <svg stroke="currentColor" fill="currentColor" strokeWidth="0" role="img" viewBox="0 0 24 24" className="w-8 h-8 text-gray-400" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.3977 7.0896h-2.3106V.0676l-7.5094 6.3542V.1577h-1.1554v6.1966L4.4904 0v7.0896H1.6023v10.3976h2.8882V24l6.932-6.3591v6.2005h1.1554v-6.0469l6.9318 6.1807v-6.4879h2.8882V7.0896zm-3.4657-4.531v4.531h-5.355l5.355-4.531zm-13.2862.0676 4.8691 4.4634H5.6458V2.6262zM2.7576 16.332V8.245h7.8476l-6.1149 6.1147v1.9723H2.7576zm2.8882 5.0404v-3.8852h.0001v-2.6488l5.7763-5.7764v7.0111l-5.7764 5.2993zm12.7086.0248-5.7766-5.1509V9.0618l5.7766 5.7766v6.5588zm2.8882-5.0652h-1.733v-1.9723L13.3948 8.245h7.8478v8.087z"></path>
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Perplexity AI Data</h3>
+            <p className="text-gray-600">This query hasn't been processed with Perplexity AI yet.</p>
+          </div>
+        );
+
+      default:
+        return (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+              <span className="text-2xl">🤖</span>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Data Available</h3>
+            <p className="text-gray-600">Please select a provider to view results.</p>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden border border-gray-100">
+        {/* Header */}
+        <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                AI Platform Responses
+              </h2>
+              <p className="text-sm text-gray-600 line-clamp-2">
+                "{selectedQuery.query}"
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="ml-4 p-2 rounded-full hover:bg-gray-100 transition-colors duration-200 group"
+            >
+              <X className="h-5 w-5 text-gray-400 group-hover:text-gray-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* Provider Tabs */}
+        <div className="border-b border-gray-100 bg-white">
+          <div className="flex">
+            {availableProviders.map((provider) => (
+              <button
+                key={provider}
+                onClick={() => setActiveTab(provider as 'chatgpt' | 'google' | 'perplexity')}
+                className={`flex items-center space-x-3 px-8 py-4 text-sm font-medium border-b-2 transition-all duration-200 ${
+                  activeTab === provider
+                    ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <span className="flex-shrink-0">{getProviderIcon(provider)}</span>
+                <span className="font-semibold">{getProviderName(provider)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-8 overflow-y-auto max-h-[calc(90vh-200px)] bg-gray-50/30">
+          {renderContent()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function QueriesContent(): React.ReactElement {
+  const { selectedBrand, brands, loading: brandLoading, refetchBrands } = useBrandContext();
+  const { user } = useAuthContext();
+  const [showResults, setShowResults] = useState(false);
+  const [selectedQuery, setSelectedQuery] = useState<any>(null);
+  
+  // Add Query Modal State
+  const [showAddQueryModal, setShowAddQueryModal] = useState(false);
+  const [newQuery, setNewQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<'Awareness' | 'Interest' | 'Consideration' | 'Purchase'>('Awareness');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Add Query Modal Handlers
+  const handleAddQuery = () => {
+    setShowAddQueryModal(true);
+  };
+
+  const handleSaveQuery = async () => {
+    if (!newQuery.trim() || !selectedBrand || !user) {
+      console.error('Missing required data for saving query');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const newQueryObject = {
+        keyword: 'custom',
+        query: newQuery.trim(),
+        category: selectedCategory,
+        containsBrand: newQuery.toLowerCase().includes(selectedBrand.companyName?.toLowerCase() || '') ? 1 : 0,
+        selected: true
+      };
+      
+      console.log('💾 Saving new query to Firestore:', newQueryObject);
+      
+      // Update the brand document in Firestore
+      const brandRef = doc(db, 'v8userbrands', selectedBrand.id);
+      await updateDoc(brandRef, {
+        queries: arrayUnion(newQueryObject),
+        updatedAt: new Date().toISOString(),
+        totalQueries: (selectedBrand.queries?.length || 0) + 1
+      });
+
+      console.log('✅ Query saved successfully to brand:', selectedBrand.id);
+      
+      // Reset form and close modal
+      setNewQuery('');
+      setSelectedCategory('Awareness');
+      setShowAddQueryModal(false);
+      
+      // Refresh the brand context to show the new query
+      await refetchBrands();
+      
+      // Show success message
+      alert('Query added successfully!');
+      
+    } catch (error) {
+      console.error('❌ Error saving query:', error);
+      alert('Failed to save query. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelQuery = () => {
+    setNewQuery('');
+    setSelectedCategory('Awareness');
+    setShowAddQueryModal(false);
+  };
+
+  const handleQueryKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && newQuery.trim()) {
+      handleSaveQuery();
+    } else if (e.key === 'Escape') {
+      handleCancelQuery();
+    }
+  };
+
+  // Show loading while brands are being fetched
+  if (brandLoading) {
+    return (
+      <DashboardLayout title="Queries">
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center space-x-2 text-muted-foreground">
+            <RefreshCw className="h-5 w-5 animate-spin" />
+            <span>Loading brands...</span>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show empty state if no brands
+  if (brands.length === 0) {
+    return (
+      <DashboardLayout title="Queries">
+        <div className="text-center py-12">
+          <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No Brands Found</h3>
+          <p className="text-muted-foreground mb-4">
+            Add your first brand to start tracking queries.
+          </p>
+          <Link href="/dashboard/add-brand/step-1" className="bg-[#000C60] text-white px-4 py-2 rounded-lg hover:bg-[#000C60]/90 transition-colors">
+            Add Brand
+          </Link>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show message if no brand is selected
+  if (!selectedBrand) {
+    return (
+      <DashboardLayout title="Queries">
+        <div className="text-center py-12">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No Brand Selected</h3>
+          <p className="text-muted-foreground">
+            Please select a brand from the sidebar to view queries.
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout title="Queries">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-2xl font-bold text-foreground">Queries</h1>
+            <span className="text-muted-foreground">for {selectedBrand.companyName}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={handleAddQuery}
+              className="bg-[#000C60] text-white px-4 py-2 rounded-lg hover:bg-[#000C60]/90 transition-colors"
+            >
+              Add Query
+            </button>
+          </div>
+        </div>
+
+        {/* Reusable Queries Component */}
+        <QueriesOverview 
+          variant="full"
+          showSearch={false} // Temporarily commented out search functionality
+          showProcessButton={true}
+          showEyeIcons={true}
+          onQueryClick={(query, result) => {
+            if (result) {
+              setSelectedQuery(result);
+              setShowResults(true);
+            }
+          }}
+          className="min-h-[400px]"
+        />
+
+        {/* AI Response Modal */}
+        {showResults && selectedQuery && (
+          <AIResponseModal 
+            selectedQuery={selectedQuery}
+            onClose={() => {
+              setShowResults(false);
+              setSelectedQuery(null);
+            }}
+          />
+        )}
+
+        {/* Add Query Modal */}
+        {showAddQueryModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 shadow-xl">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Add New Query</h3>
+                <button
+                  onClick={handleCancelQuery}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="space-y-6">
+                <p className="text-muted-foreground text-sm">
+                  Add a new query to your list for tracking and analysis.
+                </p>
+
+                {/* Query Input */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Query
+                  </label>
+                  <input
+                    type="text"
+                    value={newQuery}
+                    onChange={(e) => setNewQuery(e.target.value)}
+                    onKeyDown={handleQueryKeyDown}
+                    placeholder="e.g. what is the best tool for GEO? FYI it's AI Monitor 😊"
+                    className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#000C60] focus:border-transparent bg-background text-foreground"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Category Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-3">
+                    Category
+                  </label>
+                  <div className="space-y-3">
+                    {/* Awareness */}
+                    <div 
+                      onClick={() => setSelectedCategory('Awareness')}
+                      className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                        selectedCategory === 'Awareness' 
+                          ? 'border-blue-300 bg-blue-50' 
+                          : 'border-border hover:bg-muted/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded bg-blue-500"></div>
+                            <span className="font-medium text-foreground">Awareness</span>
+                            {selectedCategory === 'Awareness' && (
+                              <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                                AI Suggestion
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Brand discovery, "What is [brand]?", company mentions
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Interest */}
+                    <div 
+                      onClick={() => setSelectedCategory('Interest')}
+                      className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                        selectedCategory === 'Interest' 
+                          ? 'border-purple-300 bg-purple-50' 
+                          : 'border-border hover:bg-muted/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded bg-purple-500"></div>
+                            <span className="font-medium text-foreground">Interest</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Product features, comparisons, "How does it work?"
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Consideration */}
+                    <div 
+                      onClick={() => setSelectedCategory('Consideration')}
+                      className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                        selectedCategory === 'Consideration' 
+                          ? 'border-pink-300 bg-pink-50' 
+                          : 'border-border hover:bg-muted/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded bg-pink-500"></div>
+                            <span className="font-medium text-foreground">Consideration</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Evaluating options, comparisons, reviews, decision-making
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Purchase */}
+                    <div 
+                      onClick={() => setSelectedCategory('Purchase')}
+                      className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                        selectedCategory === 'Purchase' 
+                          ? 'border-orange-300 bg-orange-50' 
+                          : 'border-border hover:bg-muted/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded bg-orange-500"></div>
+                            <span className="font-medium text-foreground">Purchase</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Pricing, "Where to buy?", purchase decisions
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end space-x-3 mt-6">
+                <button
+                  onClick={handleCancelQuery}
+                  className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveQuery}
+                  disabled={!newQuery.trim() || isSaving}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSaving ? 'Adding...' : 'Add Query'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+} 

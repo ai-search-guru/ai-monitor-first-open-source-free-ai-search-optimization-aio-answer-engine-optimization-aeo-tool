@@ -1,0 +1,76 @@
+[debug] [2025-07-10T09:06:58.195Z] ----------------------------------------------------------------------
+[debug] [2025-07-10T09:06:58.197Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\advav\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init firestore --project brandargus
+[debug] [2025-07-10T09:06:58.198Z] CLI Version:   13.17.0
+[debug] [2025-07-10T09:06:58.198Z] Platform:      win32
+[debug] [2025-07-10T09:06:58.198Z] Node Version:  v20.17.0
+[debug] [2025-07-10T09:06:58.198Z] Time:          Thu Jul 10 2025 14:36:58 GMT+0530 (India Standard Time)
+[debug] [2025-07-10T09:06:58.198Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-07-10T09:06:58.270Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-10T09:06:58.271Z] > authorizing via signed-in user (write2avinash007@gmail.com)
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  C:\source-code\v8dashboard
+
+Before we get started, keep in mind:
+
+  * You are currently outside your home directory
+  * You are initializing within an existing Firebase project directory
+
+[debug] [2025-07-10T09:07:26.095Z] ----------------------------------------------------------------------
+[debug] [2025-07-10T09:07:26.098Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\advav\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules --project brandargus --debug
+[debug] [2025-07-10T09:07:26.099Z] CLI Version:   13.17.0
+[debug] [2025-07-10T09:07:26.099Z] Platform:      win32
+[debug] [2025-07-10T09:07:26.099Z] Node Version:  v20.17.0
+[debug] [2025-07-10T09:07:26.099Z] Time:          Thu Jul 10 2025 14:37:26 GMT+0530 (India Standard Time)
+[debug] [2025-07-10T09:07:26.099Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-07-10T09:07:26.183Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-10T09:07:26.185Z] > authorizing via signed-in user (write2avinash007@gmail.com)
+[debug] [2025-07-10T09:07:26.185Z] [iam] checking project brandargus for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-07-10T09:07:26.188Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/brandargus:testIamPermissions [none]
+[debug] [2025-07-10T09:07:26.188Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/brandargus:testIamPermissions x-goog-quota-user=projects/brandargus
+[debug] [2025-07-10T09:07:26.188Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/brandargus:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-07-10T09:07:27.711Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/brandargus:testIamPermissions 200
+[debug] [2025-07-10T09:07:27.712Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/brandargus:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'brandargus'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2025-07-10T09:07:27.717Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/brandargus:test [none]
+[debug] [2025-07-10T09:07:27.718Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/brandargus:test [omitted]
+[debug] [2025-07-10T09:07:29.329Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/brandargus:test 200
+[debug] [2025-07-10T09:07:29.329Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/brandargus:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2025-07-10T09:07:29.334Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/brandargus/releases pageSize=10&pageToken=
+[debug] [2025-07-10T09:07:30.641Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/brandargus/releases 200
+[debug] [2025-07-10T09:07:30.641Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/brandargus/releases {"releases":[{"name":"projects/brandargus/releases/cloud.firestore","rulesetName":"projects/brandargus/rulesets/ba772d5a-9a44-426d-99ae-d4fe7951189c","createTime":"2024-08-21T16:08:29.704891Z","updateTime":"2025-07-10T08:29:31.670009Z"}]}
+[debug] [2025-07-10T09:07:30.642Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/brandargus/rulesets/ba772d5a-9a44-426d-99ae-d4fe7951189c [none]
+[debug] [2025-07-10T09:07:31.987Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/brandargus/rulesets/ba772d5a-9a44-426d-99ae-d4fe7951189c 200
+[debug] [2025-07-10T09:07:31.987Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/brandargus/rulesets/ba772d5a-9a44-426d-99ae-d4fe7951189c [omitted]
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2025-07-10T09:07:31.989Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/brandargus/rulesets [none]
+[debug] [2025-07-10T09:07:31.989Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/brandargus/rulesets [omitted]
+[debug] [2025-07-10T09:07:33.332Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/brandargus/rulesets 200
+[debug] [2025-07-10T09:07:33.332Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/brandargus/rulesets {"name":"projects/brandargus/rulesets/1b9a9dad-bdea-4c21-9393-ac8d59cc5baf","source":{"files":[{"content":"rules_version = '2';\r\n\r\nservice cloud.firestore {\r\n  match /databases/{database}/documents {\r\n    // TEMPORARY DEVELOPMENT RULES - VERY PERMISSIVE\r\n    // DO NOT USE IN PRODUCTION\r\n    \r\n    // Allow all authenticated users to read/write everything\r\n    match /{document=**} {\r\n      allow read, write: if request.auth != null;\r\n    }\r\n  }\r\n} ","name":"firestore.rules"}]},"createTime":"2025-07-10T09:07:34.351583Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2025-07-10T09:07:33.333Z] [rules] created ruleset projects/brandargus/rulesets/1b9a9dad-bdea-4c21-9393-ac8d59cc5baf
+[debug] [2025-07-10T09:07:33.334Z] [rules] releasing cloud.firestore/(default) with ruleset projects/brandargus/rulesets/1b9a9dad-bdea-4c21-9393-ac8d59cc5baf
+[debug] [2025-07-10T09:07:33.335Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/brandargus/releases/cloud.firestore/(default) [none]
+[debug] [2025-07-10T09:07:33.335Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/brandargus/releases/cloud.firestore/(default) {"release":{"name":"projects/brandargus/releases/cloud.firestore/(default)","rulesetName":"projects/brandargus/rulesets/1b9a9dad-bdea-4c21-9393-ac8d59cc5baf"}}
+[debug] [2025-07-10T09:07:34.767Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/brandargus/releases/cloud.firestore/(default) 200
+[debug] [2025-07-10T09:07:34.768Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/brandargus/releases/cloud.firestore/(default) {"name":"projects/brandargus/releases/cloud.firestore","rulesetName":"projects/brandargus/rulesets/1b9a9dad-bdea-4c21-9393-ac8d59cc5baf","createTime":"2024-08-21T16:08:29.704891Z","updateTime":"2025-07-10T09:07:35.782328Z"}
+[debug] [2025-07-10T09:07:34.768Z] [rules] updated release projects/brandargus/releases/cloud.firestore
+[info] +  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/brandargus/overview
