@@ -130,6 +130,11 @@ export default function LifetimeAnalyticsCharts({ lifetimeAnalytics, brandId }: 
             </LineChart>
           </ResponsiveContainer>
         )}
+        {(!queriesLoading && trendData.length > 0 && trendData.length < 3) && (
+          <div className="text-xs text-gray-500 mt-2 text-center">
+            Not enough data yet! We usually need 2-3 data points to show a clear line chart. More data will be available after next analysis.
+          </div>
+        )}
       </div>
 
       {/* Donut Chart for Brand Visibility */}

@@ -24,74 +24,19 @@ import WebLogo from '@/components/shared/WebLogo';
 import BrandAnalyticsDisplay from '@/components/features/BrandAnalyticsDisplay';
 import { useBrandAnalyticsCombined } from '@/hooks/useBrandAnalytics';
 import LifetimeAnalyticsCharts from '@/components/features/LifetimeAnalyticsCharts';
+import QueriesContent from '@/app/dashboard/queries/queries-content';
 
-// Mock data - in real app this would come from API
-const metricsData = [
-  {
-    title: "Brand Validity",
-    value: "94.2%",
-    change: 5.3,
-    changeLabel: "vs last month",
-    icon: Shield,
-    color: "green" as const,
-    description: "Accuracy of brand mentions"
-  },
-  {
-    title: "Link Validity", 
-    value: "87.8%",
-    change: -2.1,
-    changeLabel: "vs last month", 
-    icon: LinkIcon,
-    color: "blue" as const,
-    description: "Valid reference links"
-  },
-  {
-    title: "Brand Mentions",
-    value: "1,247",
-    change: 12.5,
-    changeLabel: "vs last month",
-    icon: MessageSquare,
-    color: "yellow" as const,
-    description: "Total mentions tracked"
-  },
-  {
-    title: "Sentiment Analysis",
-    value: "8.6/10",
-    change: 0.8,
-    changeLabel: "vs last month",
-    icon: Heart,
-    color: "green" as const,
-    description: "Average sentiment score"
-  }
-];
 
-const leaderboardData = [
-  { rank: 1, brand: "OpenAI", domain: "openai.com", mentions: 15420, visibility: 94, change: 12.3, sentiment: "positive" as const },
-  { rank: 2, brand: "Google", domain: "google.com", mentions: 12890, visibility: 87, change: 8.7, sentiment: "positive" as const },
-  { rank: 3, brand: "Microsoft", domain: "microsoft.com", mentions: 11200, visibility: 82, change: -2.1, sentiment: "neutral" as const },
-  { rank: 4, brand: "Anthropic", domain: "anthropic.com", mentions: 8950, visibility: 76, change: 15.4, sentiment: "positive" as const },
-  { rank: 5, brand: "Meta", domain: "meta.com", mentions: 7650, visibility: 71, change: -5.3, sentiment: "negative" as const },
-  { rank: 6, brand: "Apple", domain: "apple.com", mentions: 6420, visibility: 68, change: 3.2, sentiment: "positive" as const }
-];
-
-const brandPromptsData = [
-  { rank: 1, brand: "ChatGPT Integration", domain: "chat.openai.com", mentions: 892, visibility: 89, change: 24.1, sentiment: "positive" as const },
-  { rank: 2, brand: "AI Assistant Features", domain: "assistant.google.com", mentions: 745, visibility: 82, change: 18.7, sentiment: "positive" as const },
-  { rank: 3, brand: "Machine Learning APIs", domain: "cloud.google.com", mentions: 634, visibility: 76, change: -3.2, sentiment: "neutral" as const },
-  { rank: 4, brand: "Natural Language Processing", domain: "huggingface.co", mentions: 521, visibility: 71, change: 9.8, sentiment: "positive" as const },
-  { rank: 5, brand: "Deep Learning Models", domain: "pytorch.org", mentions: 456, visibility: 65, change: 7.2, sentiment: "positive" as const },
-  { rank: 6, brand: "Neural Networks", domain: "tensorflow.org", mentions: 389, visibility: 58, change: -1.5, sentiment: "neutral" as const }
-];
-
+// Recommendations Data manually updated on a weekly basis
 const recommendationsData = [
   {
     id: "1",
     title: "Optimize brand mentions in ChatGPT responses",
-    description: "Increase your brand visibility by 23% through strategic content optimization and keyword targeting.",
+    description: "Increase your brand visibility through strategic content optimization and earned media.",
     priority: "high" as const,
     category: "Content Strategy",
-    imageUrl: "https://picsum.photos/400/300?random=10",
-    readTime: "5 min read",
+    imageUrl: "",
+    readTime: "5 Hours to Implement",
     rating: 4.8
   },
   {
@@ -100,32 +45,22 @@ const recommendationsData = [
     description: "Address negative sentiment patterns detected in recent brand mentions to improve overall rating.",
     priority: "medium" as const,
     category: "Reputation Management",
-    imageUrl: "https://picsum.photos/400/300?random=11",
-    readTime: "3 min read",
+    imageUrl: "",
+    readTime: "3 Hours to Implement",
     rating: 4.2
   },
   {
     id: "3",
-    title: "Expand competitor analysis coverage",
-    description: "Track 12 additional competitors to get more comprehensive market intelligence.",
+    title: "Expand your AI prompt coverage",
+    description: "Track 12 additional prompts to get more comprehensive market intelligence.",
     priority: "low" as const,
     category: "Market Intelligence",
-    imageUrl: "https://picsum.photos/400/300?random=12",
-    readTime: "7 min read",
+    imageUrl: "",
+    readTime: "30 Minutes to Implement",
     rating: 4.5
   }
 ];
 
-const topDomainsData = [
-  { rank: 1, domain: "www.zeni.ai", mentions: 6, progress: 90, icon: "⚡" },
-  { rank: 2, domain: "mercury.com", mentions: 5, progress: 75, icon: "▪️" },
-  { rank: 3, domain: "affoweb.com", mentions: 4, progress: 60, icon: "🔺" },
-  { rank: 4, domain: "kruzeconsulting.c...", mentions: 4, progress: 85, icon: "📊" },
-  { rank: 5, domain: "topapps.ai", mentions: 3, progress: 50, icon: "⚫" },
-  { rank: 6, domain: "www.codemasters...", mentions: 3, progress: 45, icon: "⚪" },
-  { rank: 7, domain: "www.freshbooks.c...", mentions: 3, progress: 65, icon: "🔷" },
-  { rank: 8, domain: "www.phoenixstrat...", mentions: 3, progress: 70, icon: "🔶" }
-];
 
 function Page(): React.ReactElement {
   const { user, loading: authLoading } = useAuthContext();
@@ -388,19 +323,33 @@ function Page(): React.ReactElement {
         {/* --- Queries Overview Section --- */}
         <QueriesOverview 
           variant="compact"
+          layout="cards"
           maxQueries={5}
           showProcessButton={true}
           showSearch={false}
           showEyeIcons={true}
+          showCategoryFilter={true}
           onViewAll={() => {
             window.location.href = '/dashboard/queries';
-          }}
-          onQueryClick={(query, result) => {
-            console.log('Dashboard: Query clicked', query, result);
           }}
         />
 
         {/* --- Remaining Analytics Section (if both exist) --- */}
+        {/* {latestAnalytics && lifetimeAnalytics && (
+          <>
+            <BrandAnalyticsDisplay 
+              latestAnalytics={null} 
+              lifetimeAnalytics={lifetimeAnalytics}
+            />
+            {/* Lifetime Analytics Visualizations */}
+            {/* {selectedBrandId && (
+              <LifetimeAnalyticsCharts lifetimeAnalytics={lifetimeAnalytics} brandId={selectedBrandId} />
+            )}
+          </>
+        )} */}
+        {lifetimeAnalytics && selectedBrandId && (
+          <LifetimeAnalyticsCharts lifetimeAnalytics={lifetimeAnalytics} brandId={selectedBrandId} />
+        )}
         
       </div>
       {/* Brand Tracking Modal remains as is */}

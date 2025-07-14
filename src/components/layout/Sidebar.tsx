@@ -130,6 +130,10 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
 
   const ThemeIcon = getThemeIcon();
 
+  // Filter out nav items to hide
+  const hiddenNavNames = ['Analytics', 'Competitors', 'Billing', 'Settings'];
+  const visibleNavigationItems = navigationItems.filter(item => !hiddenNavNames.includes(item.name));
+
   return (
     <>
       {/* Mobile menu button */}
@@ -316,7 +320,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
               </>
             )}
             
-            {navigationItems.map((item) => {
+            {visibleNavigationItems.map((item) => {
               const Icon = item.icon;
               const isActive = item.name === 'Add Brand' 
                 ? pathname.startsWith('/dashboard/add-brand')

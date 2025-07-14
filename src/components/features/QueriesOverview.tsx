@@ -55,6 +55,7 @@ export default function QueriesOverview({
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [processingQueries, setProcessingQueries] = useState<Set<string>>(new Set()); // Track which queries are being processed
   const [isProcessingActive, setIsProcessingActive] = useState(false); // Track if any processing is happening
+  // const processButtonRef = React.useRef<any>(null); // Removed as per edit hint
 
   // Use brand override if provided, otherwise use selected brand
   const brand = brandOverride || selectedBrand;
@@ -143,6 +144,28 @@ export default function QueriesOverview({
     return () => clearInterval(interval);
   }, [brand?.id, resultsCount, latestResultTime]);
 
+  const findQueryResult = (query: string) => {
+    return queryResults.find(result => result.query === query);
+  };
+
+  // Compute if we should auto-start processing
+  const queriesWithoutResults = queries.filter(q => !findQueryResult(q.query));
+  const shouldAutoStart = queriesWithoutResults.length >= 4 && !isProcessingActive;
+
+  // Automatically trigger Process Queries if more than 5 queries have no results
+  // useEffect(() => {
+  //   if (!brand || !showProcessButton) return;
+  //   const queriesWithoutResults = queries.filter(q => !findQueryResult(q.query));
+  //   if (queriesWithoutResults.length >= 1 && processButtonRef.current && !isProcessingActive) {
+  //     // Programmatically trigger the button's click or handler
+  //     if (typeof processButtonRef.current.click === 'function') {
+  //       processButtonRef.current.click();
+  //     } else if (typeof processButtonRef.current === 'function') {
+  //       processButtonRef.current();
+  //     }
+  //   }
+  // }, [brand, queries, queryResults, showProcessButton, isProcessingActive]); // Removed as per edit hint
+
   // Filter queries based on search and category
   const filteredQueries = queries.filter(query => {
     const matchesSearch = query.query.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -175,10 +198,6 @@ export default function QueriesOverview({
       case 'Purchase': return 'bg-green-100 text-green-700 border-green-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
-  };
-
-  const findQueryResult = (query: string) => {
-    return queryResults.find(result => result.query === query);
   };
 
   // Helper function to get query status
@@ -328,6 +347,7 @@ export default function QueriesOverview({
                 brandId={brand.id}
                 variant="ghost"
                 size="sm"
+                autoStart={shouldAutoStart}
                 onStart={() => {
                   // Set all queries as potentially processing when processing starts
                   setIsProcessingActive(true);
@@ -617,7 +637,7 @@ export default function QueriesOverview({
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      {showEyeIcons && hasResults && (
+                      {/* {showEyeIcons && hasResults && (
                         <div className="flex items-center space-x-1">
                           {queryResult.results.chatgpt && (
                             <div className="w-2 h-2 bg-green-500 rounded-full" title="ChatGPT response available" />
@@ -629,8 +649,8 @@ export default function QueriesOverview({
                             <div className="w-2 h-2 bg-purple-500 rounded-full" title="Perplexity response available" />
                           )}
                         </div>
-                      )}
-                      {showEyeIcons && hasResults && (
+                      )} */}
+                      {/* {showEyeIcons && hasResults && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation(); // Prevent row click when button is clicked
@@ -641,7 +661,7 @@ export default function QueriesOverview({
                         >
                           More Details
                         </button>
-                      )}
+                      )} */}
                       {!hasResults && (
                         <span className="text-xs text-muted-foreground">No data</span>
                       )}

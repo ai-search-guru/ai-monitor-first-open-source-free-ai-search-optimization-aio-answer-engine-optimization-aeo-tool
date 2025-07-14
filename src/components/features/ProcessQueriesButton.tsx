@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuthContext } from '@/context/AuthContext';
 import { useBrandContext } from '@/context/BrandContext';
 import { useToast } from '@/context/ToastContext';
@@ -18,6 +18,7 @@ interface ProcessQueriesButtonProps {
   className?: string;
   variant?: 'primary' | 'secondary' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
+  autoStart?: boolean; // NEW PROP
 }
 
 export default function ProcessQueriesButton({ 
@@ -28,7 +29,8 @@ export default function ProcessQueriesButton({
   onQueryStart,
   className = '',
   variant = 'primary',
-  size = 'md'
+  size = 'md',
+  autoStart = false // NEW PROP
 }: ProcessQueriesButtonProps): React.ReactElement {
   const { user, userProfile, refreshUserProfile } = useAuthContext();
   const { selectedBrand, brands, refetchBrands } = useBrandContext();
@@ -40,6 +42,17 @@ export default function ProcessQueriesButton({
   
   // Add ref to track cancellation
   const cancelledRef = useRef(false);
+
+  // Auto-trigger processing if autoStart becomes true
+  const [autoStarted, setAutoStarted] = useState(false);
+  useEffect(() => {
+    if (autoStart && !autoStarted && !processing) {
+      setAutoStarted(true);
+      handleProcessQueries();
+    } else if (!autoStart && autoStarted) {
+      setAutoStarted(false);
+    }
+  }, [autoStart, autoStarted, processing]);
 
   const handleProcessQueries = async () => {
     if (!user?.uid) {
