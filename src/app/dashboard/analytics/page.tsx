@@ -114,7 +114,7 @@ export default function AnalyticsPage(): React.ReactElement {
             <div className="flex items-center space-x-2 text-gray-600">
               <RefreshCw className="w-4 h-4 animate-spin" />
               <span>Loading analytics...</span>
-            </div>
+              </div>
           </div>
         ) : (hasLatestData || hasLifetimeData) ? (
           <BrandAnalyticsDisplay 
@@ -130,8 +130,8 @@ export default function AnalyticsPage(): React.ReactElement {
             </p>
             <p className="text-sm text-gray-500">
               Process some queries first to generate analytics data, then refresh this page.
-            </p>
-          </div>
+                    </p>
+                  </div>
         )}
       </div>
     </DashboardLayout>

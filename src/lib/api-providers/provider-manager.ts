@@ -120,18 +120,18 @@ export class ProviderManager {
         dataForSeoUsername.trim() !== '' && dataForSeoPassword.trim() !== '') {
       const credentials = Buffer.from(`${dataForSeoUsername}:${dataForSeoPassword}`).toString('base64');
       const authHeader = `Basic ${credentials}`;
-      
-      const googleAIOverviewConfig = {
-        name: 'google-ai-overview',
-        type: 'google-ai-overview' as const,
-        apiKey: '', // Not used for DataForSEO
-        authHeader: authHeader,
-        username: dataForSeoUsername,
-        password: dataForSeoPassword,
-        timeout: 30000,
-        retryAttempts: 3,
-      };
-      configs.push(googleAIOverviewConfig);
+    
+    const googleAIOverviewConfig = {
+      name: 'google-ai-overview',
+      type: 'google-ai-overview' as const,
+      apiKey: '', // Not used for DataForSEO
+      authHeader: authHeader,
+      username: dataForSeoUsername,
+      password: dataForSeoPassword,
+      timeout: 30000,
+      retryAttempts: 3,
+    };
+    configs.push(googleAIOverviewConfig);
       console.log('✅ Google AI Overview provider configured with environment credentials');
     } else {
       console.log('⚠️ Google AI Overview provider disabled - set DATAFORSEO_USERNAME and DATAFORSEO_PASSWORD environment variables to enable');

@@ -30,7 +30,7 @@ export default function RootLayout( { children }: { children: React.ReactNode } 
           <AuthContextProvider>
             <BrandContextProvider>
               <ToastProvider>
-                {children}
+              {children}
               </ToastProvider>
             </BrandContextProvider>
           </AuthContextProvider>

@@ -20,14 +20,14 @@ export function useLatestBrandAnalytics(brandId: string | undefined) {
     async function fetchAnalytics() {
       if (!brandId) {
         setAnalytics(null);
-        setLoading(false);
-        return;
-      }
+      setLoading(false);
+      return;
+    }
 
       try {
-        setLoading(true);
-        setError(null);
-        
+    setLoading(true);
+    setError(null);
+
         const { result, error: fetchError } = await getLatestBrandAnalytics(brandId);
         
         if (fetchError) {
@@ -36,12 +36,12 @@ export function useLatestBrandAnalytics(brandId: string | undefined) {
         } else {
           setAnalytics(result || null);
         }
-      } catch (err) {
+    } catch (err) {
         setError('Failed to fetch analytics');
         console.error('Analytics error:', err);
-      } finally {
-        setLoading(false);
-      }
+    } finally {
+      setLoading(false);
+    }
     }
 
     fetchAnalytics();

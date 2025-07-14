@@ -419,10 +419,10 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
     
     // Then extract from markdown content if available (only if not already found in references)
     if (text) {
-      // Extract markdown links [text](url)
-      const markdownLinks = text.match(/\[([^\]]+)\]\(([^)]+)\)/g) || [];
-      markdownLinks.forEach(link => {
-        const match = link.match(/\[([^\]]+)\]\(([^)]+)\)/);
+    // Extract markdown links [text](url)
+    const markdownLinks = text.match(/\[([^\]]+)\]\(([^)]+)\)/g) || [];
+    markdownLinks.forEach(link => {
+      const match = link.match(/\[([^\]]+)\]\(([^)]+)\)/);
         if (match && match[2] && match[2].trim()) {
           const normalizedUrl = normalizeUrl(match[2]);
           if (!seen.has(normalizedUrl)) {
@@ -434,13 +434,13 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
             });
             seen.add(normalizedUrl);
           }
-        }
-      });
-      
-      // Extract plain URLs
-      const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
-      const urls = text.match(urlRegex) || [];
-      urls.forEach(url => {
+      }
+    });
+    
+    // Extract plain URLs
+    const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
+    const urls = text.match(urlRegex) || [];
+    urls.forEach(url => {
         if (url && url.trim()) {
           const normalizedUrl = normalizeUrl(url);
           if (!seen.has(normalizedUrl)) {
@@ -460,7 +460,7 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
               source: isGoogleSearch ? 'Google Search' : 'AI Overview Content'
             });
             seen.add(normalizedUrl);
-          }
+      }
         }
       });
     }
@@ -918,20 +918,20 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
               </div>
               <div className="flex items-center space-x-2 ml-auto">
                 {brandAnalysis.results.chatgpt?.brandMentioned && (
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                     Brand Mentioned
-                  </span>
+                </span>
                 )}
                 {brandAnalysis.results.chatgpt?.domainCited && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                     Link Cited
-                  </span>
+                </span>
                 )}
                 {/* Future: Competitor detection will go here */}
                 {false && (
                   <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
                     Competitor Mentioned
-                  </span>
+                </span>
                 )}
               </div>
             </div>
@@ -975,14 +975,14 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
               </div>
               <div className="flex items-center space-x-2 ml-auto">
                 {brandAnalysis.results.google?.brandMentioned && (
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                     Brand Mentioned
-                  </span>
+                </span>
                 )}
                 {brandAnalysis.results.google?.domainCited && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                     Link Cited
-                  </span>
+                </span>
                 )}
                 {/* Future: Competitor detection will go here */}
                 {false && (
@@ -1026,20 +1026,20 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
               </div>
               <div className="flex items-center space-x-2 ml-auto">
                 {brandAnalysis.results.perplexity?.brandMentioned && (
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                     Brand Mentioned
-                  </span>
+                </span>
                 )}
                 {brandAnalysis.results.perplexity?.domainCited && (
-                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                     Link Cited
-                  </span>
+                </span>
                 )}
                 {/* Future: Competitor detection will go here */}
                 {false && (
                   <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
                     Competitor Mentioned
-                  </span>
+                </span>
                 )}
               </div>
             </div>
