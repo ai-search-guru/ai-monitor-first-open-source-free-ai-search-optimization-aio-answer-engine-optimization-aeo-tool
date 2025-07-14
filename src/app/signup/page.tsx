@@ -182,6 +182,11 @@ function Page(): React.ReactElement {
             )}
           </button>
         </form>
+        {/* Add this below the signup form */}
+        <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
+          Already have an account?{' '}
+          <a href="/signin" className="text-[#000C60] hover:underline">Login</a>
+        </div>
       </div>
     </div>
   );
