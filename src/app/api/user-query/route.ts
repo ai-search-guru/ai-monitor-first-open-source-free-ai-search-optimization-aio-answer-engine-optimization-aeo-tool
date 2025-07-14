@@ -8,6 +8,7 @@ interface UserQueryRequest {
   query: string;
   context?: string;
   userId?: string;
+  isAutoStart?: boolean; // Add this flag
 }
 
 interface ProviderResult {
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
   
   try {
     const body: UserQueryRequest = await request.json();
-    const { query, context } = body;
+    const { query, context, isAutoStart } = body;
 
     if (!query || typeof query !== 'string') {
       return NextResponse.json(
@@ -177,43 +178,49 @@ export async function POST(request: NextRequest) {
       userId: uid,
       userCredits: profile.credits,
       requiredCredits,
+      isAutoStart,
       timestamp: new Date().toISOString()
     });
 
-    // Check if user has sufficient credits
-    if (profile.credits < requiredCredits) {
-      return NextResponse.json(
-        {
-          error: `Insufficient credits. Required: ${requiredCredits}, Available: ${profile.credits}`,
-          code: 'INSUFFICIENT_CREDITS',
-          requiredCredits,
-          availableCredits: profile.credits
-        },
-        { status: 402 }
-      );
-    }
+    // Skip credit check if this is an auto-started query
+    if (!isAutoStart) {
+      // Check if user has sufficient credits
+      if (profile.credits < requiredCredits) {
+        return NextResponse.json(
+          {
+            error: `Insufficient credits. Required: ${requiredCredits}, Available: ${profile.credits}`,
+            code: 'INSUFFICIENT_CREDITS',
+            requiredCredits,
+            availableCredits: profile.credits
+          },
+          { status: 402 }
+        );
+      }
 
-    // Deduct credits BEFORE processing
-    console.log('💰 Deducting credits before processing...');
-    const { result: deductionSuccess, error: deductionError } = await deductCreditsServer(uid, requiredCredits);
-    
-    if (!deductionSuccess) {
-      console.error('❌ Credit deduction failed:', deductionError);
-      return NextResponse.json(
-        {
-          error: 'Failed to deduct credits. Please try again.',
-          code: 'CREDIT_DEDUCTION_FAILED'
-        },
-        { status: 500 }
-      );
-    }
+      // Deduct credits BEFORE processing
+      console.log('💰 Deducting credits before processing...');
+      const { result: deductionSuccess, error: deductionError } = await deductCreditsServer(uid, requiredCredits);
+      
+      if (!deductionSuccess) {
+        console.error('❌ Credit deduction failed:', deductionError);
+        return NextResponse.json(
+          {
+            error: 'Failed to deduct credits. Please try again.',
+            code: 'CREDIT_DEDUCTION_FAILED'
+          },
+          { status: 500 }
+        );
+      }
 
-    console.log('✅ Credits deducted successfully:', {
-      userId: uid,
-      deducted: requiredCredits,
-      previousCredits: profile.credits,
-      newCredits: profile.credits - requiredCredits
-    });
+      console.log('✅ Credits deducted successfully:', {
+        userId: uid,
+        deducted: requiredCredits,
+        previousCredits: profile.credits,
+        newCredits: profile.credits - requiredCredits
+      });
+    } else {
+      console.log('🚀 Auto-start query - skipping credit check and deduction');
+    }
 
     // Initialize provider manager
     const providerManager = new ProviderManager();

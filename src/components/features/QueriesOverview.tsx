@@ -21,6 +21,15 @@ import { extractGoogleAIOverviewCitations } from './GoogleAIOverviewRenderer';
 import { extractPerplexityCitations } from './PerplexityResponseRenderer';
 import { analyzeBrandMentions } from './BrandMentionCounter';
 
+// Add LoadingDots component
+const LoadingDots = () => (
+  <span className="inline-flex items-center">
+    <span className="animate-[loading_1.4s_ease-in-out_infinite] rounded-full h-1 w-1 mx-0.5 bg-white"></span>
+    <span className="animate-[loading_1.4s_ease-in-out_0.2s_infinite] rounded-full h-1 w-1 mx-0.5 bg-white"></span>
+    <span className="animate-[loading_1.4s_ease-in-out_0.4s_infinite] rounded-full h-1 w-1 mx-0.5 bg-white"></span>
+  </span>
+);
+
 interface QueriesOverviewProps {
   variant?: 'full' | 'compact' | 'minimal';
   layout?: 'cards' | 'table'; // New prop for layout type
@@ -209,7 +218,8 @@ export default function QueriesOverview({
       return {
         status: 'Processing',
         color: 'bg-blue-500 text-white',
-        description: 'Query is being processed...'
+        description: 'Query is being processed...',
+        showLoader: true // Add this flag
       };
     }
     
@@ -224,13 +234,15 @@ export default function QueriesOverview({
         return {
           status: 'Processed',
           color: 'bg-green-500 text-white',
-          description: `Processed ${daysSinceProcessed} day${daysSinceProcessed !== 1 ? 's' : ''} ago`
+          description: `Processed ${daysSinceProcessed} day${daysSinceProcessed !== 1 ? 's' : ''} ago`,
+          showLoader: false
         };
       } else {
         return {
           status: 'Processed',
           color: 'bg-amber-500 text-white',
-          description: `Processed ${daysSinceProcessed} days ago (due for reprocessing)`
+          description: `Processed ${daysSinceProcessed} days ago (due for reprocessing)`,
+          showLoader: false
         };
       }
     }
@@ -239,7 +251,8 @@ export default function QueriesOverview({
     return {
       status: 'Unprocessed',
       color: 'bg-gray-500 text-white',
-      description: 'Query has not been processed yet'
+      description: 'Query has not been processed yet',
+      showLoader: false
     };
   };
 
@@ -485,6 +498,7 @@ export default function QueriesOverview({
                             title={statusInfo.description}
                           >
                             {statusInfo.status}
+                            {statusInfo.showLoader && <LoadingDots />}
                           </span>
                         </td>
                         <td className="px-4 py-4 text-center">
@@ -624,6 +638,7 @@ export default function QueriesOverview({
                         <span className="text-xs text-muted-foreground">{query.keyword}</span>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
                           {statusInfo.status}
+                          {statusInfo.showLoader && <LoadingDots />}
                         </span>
                       </div>
                       <p className="text-sm text-foreground truncate" title={query.query}>

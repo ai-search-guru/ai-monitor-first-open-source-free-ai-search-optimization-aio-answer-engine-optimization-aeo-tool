@@ -27,7 +27,6 @@ import {
   SortDesc,
   ArrowUpDown
 } from 'lucide-react';
-import CitationsTable from '@/components/features/CitationsTable';
 
 // Citation interface
 interface Citation {
@@ -578,18 +577,19 @@ export default function CitationsPage(): React.ReactElement {
           </Card>
         </div>
 
-      
-        {/* All Citations Table */}
+        {/* Top Sources */}
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">All Citations</h3>
-            <div className="text-sm text-muted-foreground">
-              Total: {allCitations.length} citations
-            </div>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Top Sources</h3>
+          <div className="space-y-2">
+            {analytics.topSources.slice(0, 5).map(([source, count], index) => (
+              <div key={source} className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground truncate">{source}</span>
+                <span className="font-medium">{count}</span>
+              </div>
+            ))}
           </div>
-          <CitationsTable citations={allCitations} />
         </Card>
       </div>
     </DashboardLayout>
   );
-} 
+}

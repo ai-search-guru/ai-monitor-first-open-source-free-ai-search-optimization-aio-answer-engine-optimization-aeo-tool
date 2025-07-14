@@ -61,7 +61,7 @@ export default function ProcessQueriesButton({
       return;
     }
 
-    // Check user credits (10 credits per query)
+    // Check user credits (10 credits per query) - Skip if autoStart is true
     const targetBrandId = brandId || selectedBrand?.id;
     const targetBrand = brands.find(b => b.id === targetBrandId);
     
@@ -80,26 +80,29 @@ export default function ProcessQueriesButton({
       return;
     }
 
-    // Check if user has enough credits (10 per query)
-    const requiredCredits = queries.length * 10;
-    const availableCredits = userProfile?.credits || 0;
-    
-    if (availableCredits < requiredCredits) {
-      setStatus('error');
-      setMessage(`Insufficient credits. Need ${requiredCredits}, have ${availableCredits}`);
+    // Only check credits if NOT auto-starting
+    if (!autoStart) {
+      // Check if user has enough credits (10 per query)
+      const requiredCredits = queries.length * 10;
+      const availableCredits = userProfile?.credits || 0;
       
-      // Show user-friendly notification
-      showError(
-        'Insufficient Credits',
-        `You need ${requiredCredits} credits to process ${queries.length} queries, but you only have ${availableCredits} credits available.`,
-      );
-      
-      return;
+      if (availableCredits < requiredCredits) {
+        setStatus('error');
+        setMessage(`Insufficient credits. Need ${requiredCredits}, have ${availableCredits}`);
+        
+        // Show user-friendly notification
+        showError(
+          'Insufficient Credits',
+          `You need ${requiredCredits} credits to process ${queries.length} queries, but you only have ${availableCredits} credits available.`,
+        );
+        
+        return;
+      }
     }
 
     setProcessing(true);
     setStatus('processing');
-    setMessage(`Processing ${queries.length} queries for ${brandName}... (${requiredCredits} credits)`);
+    setMessage(`Processing ${queries.length} queries for ${brandName}...${!autoStart ? ` (${queries.length * 10} credits)` : ''}`);
     setProcessedResults([]); // Reset processed results
     cancelledRef.current = false;
 
@@ -157,7 +160,8 @@ export default function ProcessQueriesButton({
               },
               body: JSON.stringify({
                 query: query.query,
-                context: `This query is related to ${targetBrand.companyName} in the ${query.category} category. Topic: ${query.keyword}.`
+                context: `This query is related to ${targetBrand.companyName} in the ${query.category} category. Topic: ${query.keyword}.`,
+                isAutoStart: autoStart // Add isAutoStart flag
               }),
             });
           } catch (fetchError) {
