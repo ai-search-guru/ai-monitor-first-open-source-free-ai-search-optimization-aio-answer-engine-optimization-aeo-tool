@@ -89,8 +89,8 @@ export default function BrandAnalyticsDisplay({
           </div>
           {!isLifetime && latestAnalytics && (
             <div className="flex items-center space-x-2 text-sm text-gray-500">
-              {getTrendIcon(latestAnalytics.insights.brandVisibilityTrend)}
-              <span className="capitalize">{latestAnalytics.insights.brandVisibilityTrend}</span>
+              {getTrendIcon(latestAnalytics.insights?.brandVisibilityTrend ?? 'stable')}
+              <span className="capitalize">{latestAnalytics.insights?.brandVisibilityTrend ?? 'stable'}</span>
             </div>
           )}
         </div>

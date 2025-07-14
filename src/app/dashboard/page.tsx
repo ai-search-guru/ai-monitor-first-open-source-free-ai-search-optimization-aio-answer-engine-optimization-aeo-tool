@@ -20,6 +20,10 @@ import { seedAllData } from '@/firebase/firestore/seedData';
 import { useBrandContext } from '@/context/BrandContext';
 import { UserBrand } from '@/firebase/firestore/getUserBrands';
 import { useUserBrands } from '@/hooks/useUserBrands';
+import WebLogo from '@/components/shared/WebLogo';
+import BrandAnalyticsDisplay from '@/components/features/BrandAnalyticsDisplay';
+import { useBrandAnalyticsCombined } from '@/hooks/useBrandAnalytics';
+import LifetimeAnalyticsCharts from '@/components/features/LifetimeAnalyticsCharts';
 
 // Mock data - in real app this would come from API
 const metricsData = [
@@ -136,6 +140,14 @@ function Page(): React.ReactElement {
   } = useDashboardData();
   const { selectedBrand, selectedBrandId, brands, loading: brandsLoading, error: brandsError, setSelectedBrandId, clearBrandContext } = useBrandContext();
   const { refetch: refetchBrands } = useUserBrands();
+  const { 
+    latestAnalytics, 
+    lifetimeAnalytics, 
+    loading: analyticsLoading, 
+    error: analyticsError,
+    hasLatestData,
+    hasLifetimeData
+  } = useBrandAnalyticsCombined(selectedBrand?.id);
   
   // Modal state
   const [showTrackingModal, setShowTrackingModal] = React.useState(false);
@@ -299,472 +311,110 @@ function Page(): React.ReactElement {
     );
   }
 
+  // Show loading while brands are being fetched
+  if (brandsLoading) {
+    return (
+      <DashboardLayout title="Analytics">
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center space-x-2 text-muted-foreground">
+            <RefreshCw className="h-5 w-5 animate-spin" />
+            <span>Loading brands...</span>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show empty state if no brands
+  if (brands.length === 0) {
+    return (
+      <DashboardLayout title="Analytics">
+        <div className="text-center py-12">
+          <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No Brands Found</h3>
+          <p className="text-muted-foreground mb-4">
+            Add your first brand to start viewing analytics data.
+          </p>
+          <Link href="/dashboard/add-brand/step-1" className="bg-[#000C60] text-white px-4 py-2 rounded-lg hover:bg-[#000C60]/90 transition-colors">
+            Add Brand
+          </Link>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show message if no brand is selected
+  if (!selectedBrand) {
+    return (
+      <DashboardLayout title="Analytics">
+        <div className="text-center py-12">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No Brand Selected</h3>
+          <p className="text-muted-foreground">
+            Please select a brand from the sidebar to view analytics.
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Determine which analytics section comes first
+  const showLatestFirst = !!latestAnalytics;
+  const showLifetimeFirst = !latestAnalytics && !!lifetimeAnalytics;
+
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Analytics">
       <div className="space-y-6">
-        {/* Brand Context Information */}
-        {selectedBrand && (
-          <div className="bg-[#000C60]/5 border border-[#000C60]/20 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-[#00B087] rounded-full"></div>
-                <p className="text-[#000C60] text-sm">
-                  Showing data for: <span className="font-semibold">{selectedBrand.companyName}</span>
-                  {selectedBrand.domain && (
-                    <span className="text-muted-foreground ml-2">({selectedBrand.domain})</span>
-                  )}
-                </p>
-              </div>
-              {selectedBrand.brandsbasicData && (
-                <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                  <span>Last updated: {new Date(selectedBrand.brandsbasicData.lastUpdated).toLocaleDateString()}</span>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* --- Analytics Section (First Available) --- */}
+        {showLatestFirst && (
+          <BrandAnalyticsDisplay 
+            latestAnalytics={latestAnalytics} 
+            lifetimeAnalytics={null}
+          />
+        )}
+        {showLifetimeFirst && (
+          <BrandAnalyticsDisplay 
+            latestAnalytics={null} 
+            lifetimeAnalytics={lifetimeAnalytics}
+          />
         )}
 
-        {/* Enhanced Brand Context Information */}
-        <div className="bg-gradient-to-r from-[#000C60]/10 to-[#00B087]/10 border border-[#000C60]/30 rounded-xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-[#000C60]">Current Brand Context</h2>
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${selectedBrand ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-              <span className="text-sm font-medium text-muted-foreground">
-                {selectedBrand ? 'Brand Selected' : 'No Brand Selected'}
-              </span>
-            </div>
-          </div>
+        {/* --- AI Recommendations Section --- */}
+        <RecommendationSection 
+          recommendations={data.recommendations.length > 0 ? data.recommendations : recommendationsData}
+          defaultExpanded={true}
+        />
 
-          {/* Debug Information */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-              <p className="text-xs font-medium text-yellow-800 mb-2">Debug Info:</p>
-              <div className="text-xs text-yellow-700 space-y-1">
-                <p>selectedBrandId: {selectedBrandId || 'null'}</p>
-                <p>selectedBrand: {selectedBrand ? selectedBrand.companyName : 'null'}</p>
-                <p>brands.length: {brands.length}</p>
-                <p>brandsLoading: {brandsLoading ? 'true' : 'false'}</p>
-                <p>brandsError: {brandsError || 'null'}</p>
-                {brands.length > 0 && (
-                  <p>Available brands: {brands.map((b: UserBrand) => `${b.companyName}(${b.id})`).join(', ')}</p>
-                )}
-              </div>
-              {brands.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-yellow-300">
-                  <p className="text-xs font-medium text-yellow-800 mb-2">Test Brand Selection:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {brands.map((brand: UserBrand) => (
-                      <button
-                        key={brand.id}
-                        onClick={() => {
-                          console.log('🧪 Manual brand selection test:', brand.id, brand.companyName);
-                          setSelectedBrandId(brand.id);
-                        }}
-                        className={`px-2 py-1 text-xs rounded border ${
-                          selectedBrandId === brand.id 
-                            ? 'bg-blue-500 text-white border-blue-600' 
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        {brand.companyName}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="mt-3 pt-3 border-t border-yellow-300">
-                <p className="text-xs font-medium text-yellow-800 mb-2">Debug Actions:</p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => {
-                      console.log('🔄 Manual brands refetch triggered');
-                      refetchBrands();
-                    }}
-                    className="px-2 py-1 text-xs rounded border bg-green-500 text-white border-green-600 hover:bg-green-600"
-                  >
-                    Refetch Brands
-                  </button>
-                  <button
-                    onClick={() => {
-                      console.log('🧹 Clearing localStorage selectedBrandId');
-                      localStorage.removeItem('selectedBrandId');
-                      window.location.reload();
-                    }}
-                    className="px-2 py-1 text-xs rounded border bg-red-500 text-white border-red-600 hover:bg-red-600"
-                  >
-                    Clear & Reload
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {selectedBrand ? (
-            <div className="space-y-4">
-              {/* Brand Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white/50 rounded-lg p-3 border border-[#000C60]/10">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Company Name</p>
-                  <p className="text-sm font-semibold text-[#000C60]">{selectedBrand.companyName}</p>
-                </div>
-                <div className="bg-white/50 rounded-lg p-3 border border-[#000C60]/10">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Domain</p>
-                  <p className="text-sm font-semibold text-[#000C60]">{selectedBrand.domain || 'Not provided'}</p>
-                </div>
-                <div className="bg-white/50 rounded-lg p-3 border border-[#000C60]/10">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Brand ID</p>
-                  <p className="text-sm font-mono text-[#000C60] truncate">{selectedBrandId}</p>
-                </div>
-                <div className="bg-white/50 rounded-lg p-3 border border-[#000C60]/10">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Analytics Data</p>
-                  <p className={`text-sm font-semibold ${selectedBrand.brandsbasicData ? 'text-green-600' : 'text-orange-600'}`}>
-                    {selectedBrand.brandsbasicData ? 'Available' : 'Pending Setup'}
-                  </p>
-                </div>
-              </div>
+        {/* --- Queries Overview Section --- */}
+        <QueriesOverview 
+          variant="compact"
+          maxQueries={5}
+          showProcessButton={true}
+          showSearch={false}
+          showEyeIcons={true}
+          onViewAll={() => {
+            window.location.href = '/dashboard/queries';
+          }}
+          onQueryClick={(query, result) => {
+            console.log('Dashboard: Query clicked', query, result);
+          }}
+        />
 
-              {/* Additional Brand Details */}
-              {selectedBrand.shortDescription && (
-                <div className="bg-white/50 rounded-lg p-3 border border-[#000C60]/10">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Description</p>
-                  <p className="text-sm text-[#000C60]">{selectedBrand.shortDescription}</p>
-                </div>
-              )}
-
-              {/* Analytics Data Status */}
-              {selectedBrand.brandsbasicData && (
-                <div className="bg-white/50 rounded-lg p-4 border border-[#000C60]/10">
-                  <p className="text-xs font-medium text-muted-foreground mb-3">Analytics Summary</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-[#00B087]">{selectedBrand.brandsbasicData.brandMentions}</p>
-                      <p className="text-xs text-muted-foreground">Brand Mentions</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-[#000C60]">{selectedBrand.brandsbasicData.brandValidity}%</p>
-                      <p className="text-xs text-muted-foreground">Brand Validity</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-[#764F94]">{selectedBrand.brandsbasicData.linkValidity}%</p>
-                      <p className="text-xs text-muted-foreground">Link Validity</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-[#FF6B6B]">{selectedBrand.brandsbasicData.sentimentScore}/10</p>
-                      <p className="text-xs text-muted-foreground">Sentiment Score</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-[#000C60]/10">
-                    <p className="text-xs text-muted-foreground">
-                      Last Updated: {new Date(selectedBrand.brandsbasicData.lastUpdated).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="h-8 w-8 text-gray-400" />
-              </div>
-              <p className="text-lg font-semibold text-gray-600 mb-2">No Brand Selected</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Please select a brand from the sidebar to view detailed analytics and performance metrics.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                If you don't have any brands yet, you can <strong>Add a Brand</strong> from the sidebar navigation.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Data Generation Status */}
-        {isGeneratingData && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <RefreshCw className="h-5 w-5 text-blue-600 mr-2 animate-spin" />
-              <p className="text-blue-800">
-                Generating brand data: {generationStatus}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
-              <p className="text-red-800">{error}</p>
-              <button
-                onClick={refetch}
-                className="ml-auto flex items-center text-red-600 hover:text-red-800"
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Retry
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Development Seed Data Button - Only show if no data exists */}
-        {process.env.NODE_ENV === 'development' && 
-         !dataLoading && 
-         data.metrics.length === 0 && 
-         data.leaderboard.length === 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-800 text-sm font-medium">No data found</p>
-                <p className="text-blue-600 text-xs">Populate with sample data for testing?</p>
-              </div>
-              <button
-                onClick={handleSeedData}
-                className="bg-blue-600 text-white px-3 py-1.5 text-sm rounded hover:bg-blue-700 transition-colors"
-              >
-                Add Sample Data
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {dataLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-6 animate-pulse">
-                <div className="h-4 bg-muted rounded w-3/4 mb-4"></div>
-                <div className="h-8 bg-muted rounded w-1/2 mb-2"></div>
-                <div className="h-3 bg-muted rounded w-full"></div>
-              </div>
-            ))}
-          </div>
-        ) : (
+        {/* --- Remaining Analytics Section (if both exist) --- */}
+        {latestAnalytics && lifetimeAnalytics && (
           <>
-            {/* No Brand Selected Message */}
-            {!selectedBrand && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-center">
-                  <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
-                  <p className="text-yellow-800">
-                    Please select a brand from the sidebar to view analytics data.
-                  </p>
-                </div>
-              </div>
-            )}
-
-
-
-            {/* KPI Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-              {(() => {
-                console.log('🔍 Dashboard rendering state:', {
-                  hasMetrics: data.metrics.length > 0,
-                  metricsCount: data.metrics.length,
-                  selectedBrand: selectedBrand?.companyName,
-                  selectedBrandId,
-                  hasBasicData: !!selectedBrand?.brandsbasicData,
-                  dataLoading,
-                  metricsData: data.metrics
-                });
-                return null;
-              })()}
-              {false && data.metrics.length > 0 ? (
-                // Show real brand analytics data
-                data.metrics.map((metric, index) => (
-                <MetricCard
-                  key={index}
-                  title={metric.title}
-                  value={metric.value}
-                  change={metric.change}
-                  changeLabel={metric.changeLabel}
-                  icon={[Shield, LinkIcon, MessageSquare, Heart][index] || Shield}
-                  color={metric.color}
-                  description={metric.description}
-                />
-                ))
-              ) : selectedBrand ? (
-                // If brand is selected but no analytics data, show "No data available" cards
-                [
-                  { title: "Brand Validity", icon: Shield, description: "Accuracy of brand mentions" },
-                  { title: "Link Validity", icon: LinkIcon, description: "Valid reference links" },
-                  { title: "Brand Mentions", icon: MessageSquare, description: "Total mentions tracked" },
-                  { title: "Sentiment Analysis", icon: Heart, description: "Average sentiment score" }
-                ].map((metric, index) => (
-                  <MetricCard
-                    key={index}
-                    title={metric.title}
-                    value="No data available"
-                    change={undefined}
-                    changeLabel="Complete brand setup"
-                    icon={metric.icon}
-                    color="gray"
-                    description={metric.description}
-                  />
-                ))
-              ) : (
-                // If no brand selected, show demo data
-                metricsData.map((metric, index) => (
-                <MetricCard
-                  key={index}
-                  title={metric.title}
-                  value={metric.value}
-                  change={metric.change}
-                  changeLabel={metric.changeLabel}
-                  icon={metric.icon}
-                  color={metric.color}
-                  description={metric.description}
-                />
-                ))
-              )}
-            </div>
-
-            {/* Debug: Always show test cards */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                <div className="bg-card border border-border rounded-xl p-6">
-                  <div className="text-center">
-                    <h3 className="text-lg font-semibold text-foreground mb-2">Debug Card 1</h3>
-                    <p className="text-muted-foreground">This card should always be visible</p>
-                  </div>
-                </div>
-                <div className="bg-card border border-border rounded-xl p-6">
-                  <div className="text-center">
-                    <h3 className="text-lg font-semibold text-foreground mb-2">Debug Card 2</h3>
-                    <p className="text-muted-foreground">Testing rendering</p>
-                  </div>
-                </div>
-              </div>
+            <BrandAnalyticsDisplay 
+              latestAnalytics={null} 
+              lifetimeAnalytics={lifetimeAnalytics}
+            />
+            {/* Lifetime Analytics Visualizations */}
+            {selectedBrandId && (
+              <LifetimeAnalyticsCharts lifetimeAnalytics={lifetimeAnalytics} brandId={selectedBrandId} />
             )}
           </>
         )}
-
-        {!dataLoading && (
-          <>
-            {/* AI Recommendations */}
-            <RecommendationSection 
-              recommendations={data.recommendations.length > 0 ? data.recommendations : recommendationsData}
-              defaultExpanded={true}
-            />
-
-            {/* Trend Charts */}
-            <TrendCharts />
-
-            {/* Recent Queries Overview */}
-            <QueriesOverview 
-              variant="compact"
-              maxQueries={5}
-              showProcessButton={true}
-              showSearch={false}
-              showEyeIcons={true}
-              onViewAll={() => {
-                // Navigate to queries page
-                window.location.href = '/dashboard/queries';
-              }}
-              onQueryClick={(query, result) => {
-                console.log('Dashboard: Query clicked', query, result);
-                // Could open a quick modal or navigate to detail view
-              }}
-            />
-
-            {/* Tables Section - 2 columns */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Visibility Leaderboard */}
-              <LeaderboardTable
-                title="Visibility Leaderboard"
-                data={data.leaderboard.length > 0 ? data.leaderboard : leaderboardData}
-                showSentiment={true}
-              />
-
-              {/* Top Referenced Domains - NEW */}
-              <TopDomains data={data.topDomains.length > 0 ? data.topDomains : topDomainsData} />
-            </div>
-
-            {/* Brand Prompts Analysis - Full Width */}
-            <div>
-              <LeaderboardTable
-                title="Brand Prompts Analysis"
-                data={data.brandPrompts.length > 0 ? data.brandPrompts : brandPromptsData}
-                showSentiment={false}
-              />
-            </div>
-          </>
-        )}
-
-        {/* Additional Sections - Now 2 columns instead of 3 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Quick Actions */}
-          <Card>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-foreground">Quick Actions</h3>
-              <Zap className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div className="space-y-3">
-              <button className="w-full text-left p-3 border border-border rounded-lg hover:border-accent transition-colors">
-                <p className="text-foreground font-medium">Export Monthly Report</p>
-                <p className="text-muted-foreground text-sm">Download comprehensive analytics</p>
-              </button>
-              <button className="w-full text-left p-3 border border-border rounded-lg hover:border-accent transition-colors">
-                <p className="text-foreground font-medium">Configure Alerts</p>
-                <p className="text-muted-foreground text-sm">Set up brand mention notifications</p>
-              </button>
-              <Link href="/dashboard/add-brand/step-1" className="w-full text-left p-3 border border-border rounded-lg hover:border-accent transition-colors block">
-                <p className="text-foreground font-medium">Add New Brand</p>
-                <p className="text-muted-foreground text-sm">Start tracking additional brands</p>
-              </Link>
-              <div className="w-full">
-                <ProcessQueriesButton 
-                  variant="secondary"
-                  size="md"
-                  className="w-full"
-                  onComplete={(result) => {
-                    console.log('Dashboard: Queries processed', result);
-                  }}
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Performance Overview */}
-          <Card>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-foreground">Performance Overview</h3>
-              <BarChart3 className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-muted-foreground text-sm">Brand Visibility</span>
-                  <span className="text-foreground text-sm">94%</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-[#00B087] h-2 rounded-full" style={{width: '94%'}}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-muted-foreground text-sm">Sentiment Score</span>
-                  <span className="text-foreground text-sm">8.6/10</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-[#000C60] h-2 rounded-full" style={{width: '86%'}}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-muted-foreground text-sm">Response Accuracy</span>
-                  <span className="text-foreground text-sm">92%</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-[#764F94] h-2 rounded-full" style={{width: '92%'}}></div>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
       </div>
-
-      {/* Brand Tracking Modal */}
+      {/* Brand Tracking Modal remains as is */}
       <BrandTrackingModal
         isOpen={showTrackingModal}
         onStartTracking={handleStartTracking}
