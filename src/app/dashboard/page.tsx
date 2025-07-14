@@ -401,18 +401,7 @@ function Page(): React.ReactElement {
         />
 
         {/* --- Remaining Analytics Section (if both exist) --- */}
-        {latestAnalytics && lifetimeAnalytics && (
-          <>
-            <BrandAnalyticsDisplay 
-              latestAnalytics={null} 
-              lifetimeAnalytics={lifetimeAnalytics}
-            />
-            {/* Lifetime Analytics Visualizations */}
-            {selectedBrandId && (
-              <LifetimeAnalyticsCharts lifetimeAnalytics={lifetimeAnalytics} brandId={selectedBrandId} />
-            )}
-          </>
-        )}
+        
       </div>
       {/* Brand Tracking Modal remains as is */}
       <BrandTrackingModal
