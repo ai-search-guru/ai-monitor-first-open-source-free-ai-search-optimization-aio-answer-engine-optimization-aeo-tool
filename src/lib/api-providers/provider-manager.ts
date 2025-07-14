@@ -111,31 +111,32 @@ export class ProviderManager {
       console.warn('⚠️ Google Gemini API key not found. Set GOOGLE_AI_API_KEY or GEMINI_API_KEY environment variable to enable Gemini provider.');
     }
     
-    // Google AI Overview Configuration (DataForSEO)
+    // Google AI Overview Configuration (DataForSEO) - Only enable with proper credentials
     const dataForSeoUsername = process.env.DATAFORSEO_USERNAME;
     const dataForSeoPassword = process.env.DATAFORSEO_PASSWORD;
     
-    let authHeader = 'Basic dGVhbUBnZXRhaW1vbml0b3IuY29tOjA2YjZjYzAwYTEyZTU0ZGI='; // Test credentials fallback
-    let credentialsSource = 'test credentials';
-    
-    if (dataForSeoUsername && dataForSeoPassword) {
+    // Only configure if both username and password are provided
+    if (dataForSeoUsername && dataForSeoPassword && 
+        dataForSeoUsername.trim() !== '' && dataForSeoPassword.trim() !== '') {
       const credentials = Buffer.from(`${dataForSeoUsername}:${dataForSeoPassword}`).toString('base64');
-      authHeader = `Basic ${credentials}`;
-      credentialsSource = 'environment variables';
+      const authHeader = `Basic ${credentials}`;
+      
+      const googleAIOverviewConfig = {
+        name: 'google-ai-overview',
+        type: 'google-ai-overview' as const,
+        apiKey: '', // Not used for DataForSEO
+        authHeader: authHeader,
+        username: dataForSeoUsername,
+        password: dataForSeoPassword,
+        timeout: 30000,
+        retryAttempts: 3,
+      };
+      configs.push(googleAIOverviewConfig);
+      console.log('✅ Google AI Overview provider configured with environment credentials');
+    } else {
+      console.log('⚠️ Google AI Overview provider disabled - set DATAFORSEO_USERNAME and DATAFORSEO_PASSWORD environment variables to enable');
+      console.log('💡 DataForSEO requires paid credits. Sign up at https://dataforseo.com for API access.');
     }
-    
-    const googleAIOverviewConfig = {
-      name: 'google-ai-overview',
-      type: 'google-ai-overview' as const,
-      apiKey: '', // Not used for DataForSEO
-      authHeader: authHeader,
-      username: dataForSeoUsername,
-      password: dataForSeoPassword,
-      timeout: 30000,
-      retryAttempts: 3,
-    };
-    configs.push(googleAIOverviewConfig);
-    console.log(`✅ Google AI Overview provider configured (using ${credentialsSource})`);
     
     console.log('🔧 Provider Manager Initialized:', {
       availableProviders: configs.map(c => c.name),
@@ -186,6 +187,14 @@ export class ProviderManager {
       prompt: request.prompt.substring(0, 100) + '...'
     });
 
+    // EXPLICIT LOGGING FOR GOOGLE AI OVERVIEW
+    console.log('🚨🚨🚨 PROVIDER AVAILABILITY CHECK 🚨🚨🚨');
+    console.log('Google AI Overview requested:', request.providers.includes('google-ai-overview'));
+    console.log('Google AI Overview available:', Array.from(this.providers.keys()).includes('google-ai-overview'));
+    console.log('Google AI Overview provider exists:', this.providers.has('google-ai-overview'));
+    console.log('All providers map:', Array.from(this.providers.keys()));
+    console.log('🚨🚨🚨 PROVIDER AVAILABILITY CHECK END 🚨🚨🚨');
+
     // Execute requests in parallel
     const promises = providerNames.map(async (providerName) => {
       const provider = this.providers.get(providerName);
@@ -213,6 +222,18 @@ export class ProviderManager {
           cost: result.cost,
           hasContent: !!result.data?.content
         });
+        
+        // Enhanced logging for Google AI Overview
+        if (providerName === 'google-ai-overview') {
+          console.log(`🔍 ${providerName} detailed result:`, {
+            dataKeys: Object.keys(result.data || {}),
+            contentField: result.data?.content,
+            contentLength: result.data?.content?.length || 0,
+            aiOverview: result.data?.aiOverview,
+            hasAIOverview: result.data?.hasAIOverview,
+            organicResultsCount: result.data?.organicResultsCount || 0
+          });
+        }
         
         return result;
       } catch (error) {

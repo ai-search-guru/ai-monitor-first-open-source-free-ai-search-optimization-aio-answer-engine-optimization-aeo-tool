@@ -47,7 +47,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme, actualTheme } = useTheme();
-  const { user, userProfile } = useAuthContext();
+  const { user, userProfile, refreshUserProfile } = useAuthContext();
   const { 
     brands, 
     loading: brandsLoading, 
@@ -79,6 +79,9 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Note: We intentionally don't add periodic refresh here as it can interfere with query processing
+  // Credits are updated manually after API calls in ProcessQueriesButton
 
   const getThemeIcon = () => {
     switch (theme) {
@@ -367,11 +370,43 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
           <div className="p-4 border-t border-border">
             {/* Credits Display */}
             {userProfile && (
-              <div className="mb-3 px-4 py-2 bg-gradient-to-r from-[#000C60]/10 to-[#00B087]/10 rounded-xl border border-[#000C60]/20">
+              <div className={`mb-3 px-4 py-2 rounded-xl border ${
+                userProfile.credits < 50 
+                  ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200' 
+                  : userProfile.credits < 100
+                  ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200'
+                  : 'bg-gradient-to-r from-[#000C60]/10 to-[#00B087]/10 border-[#000C60]/20'
+              }`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-[#000C60]">Available Credits</span>
-                  <span className="text-sm font-bold text-[#000C60]">{userProfile.credits.toLocaleString()}</span>
+                  <div className="flex items-center space-x-2">
+                    <CreditCard className={`h-3 w-3 ${
+                      userProfile.credits < 50 
+                        ? 'text-red-600' 
+                        : userProfile.credits < 100
+                        ? 'text-yellow-600'
+                        : 'text-[#000C60]'
+                    }`} />
+                    <span className={`text-xs font-medium ${
+                      userProfile.credits < 50 
+                        ? 'text-red-600' 
+                        : userProfile.credits < 100
+                        ? 'text-yellow-600'
+                        : 'text-[#000C60]'
+                    }`}>Available Credits</span>
+                  </div>
+                  <span className={`text-sm font-bold ${
+                    userProfile.credits < 50 
+                      ? 'text-red-600' 
+                      : userProfile.credits < 100
+                      ? 'text-yellow-600'
+                      : 'text-[#000C60]'
+                  }`}>{userProfile.credits.toLocaleString()}</span>
                 </div>
+                {userProfile.credits < 50 && (
+                  <div className="mt-1 text-xs text-red-600">
+                    ⚠️ Low credits! Consider purchasing more.
+                  </div>
+                )}
               </div>
             )}
             

@@ -153,9 +153,48 @@ export async function updateBrandWithQueryResults(
     // Append the new query results
     const allResults = [...existingResults, ...queryResults];
     
-    // Update the brand document with all results (existing + new session)
+    // Limit the number of stored results to prevent document size issues
+    // Keep only the most recent 50 results (approximately 500KB max)
+    const MAX_STORED_RESULTS = 50;
+    const limitedResults = allResults
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, MAX_STORED_RESULTS);
+    
+    // Truncate extremely long responses to prevent size issues (increased limit)
+    const truncatedResults = limitedResults.map(result => ({
+      ...result,
+      results: {
+        ...result.results,
+        ...(result.results.chatgpt && {
+          chatgpt: {
+            ...result.results.chatgpt,
+            response: result.results.chatgpt.response.length > 10000 
+              ? result.results.chatgpt.response.substring(0, 10000) + '...[truncated]'
+              : result.results.chatgpt.response
+          }
+        }),
+        ...(result.results.gemini && {
+          gemini: {
+            ...result.results.gemini,
+            response: result.results.gemini.response.length > 10000 
+              ? result.results.gemini.response.substring(0, 10000) + '...[truncated]'
+              : result.results.gemini.response
+          }
+        }),
+        ...(result.results.perplexity && {
+          perplexity: {
+            ...result.results.perplexity,
+            response: result.results.perplexity.response.length > 10000 
+              ? result.results.perplexity.response.substring(0, 10000) + '...[truncated]'
+              : result.results.perplexity.response
+          }
+        })
+      }
+    }));
+    
+    // Update the brand document with limited results
     await setDoc(brandRef, {
-      queryProcessingResults: allResults,
+      queryProcessingResults: truncatedResults,
       lastProcessedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     }, { merge: true });

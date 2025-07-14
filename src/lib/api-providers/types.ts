@@ -82,6 +82,12 @@ export interface PerplexityRequest {
   top_p?: number;
   presence_penalty?: number;
   frequency_penalty?: number;
+  // Experimental search parameters for better results
+  search_domain_filter?: string[];
+  search_recency_filter?: 'month' | 'week' | 'day' | 'hour';
+  return_citations?: boolean;
+  return_images?: boolean;
+  return_related_questions?: boolean;
 }
 
 export interface GoogleAIOverviewRequest {

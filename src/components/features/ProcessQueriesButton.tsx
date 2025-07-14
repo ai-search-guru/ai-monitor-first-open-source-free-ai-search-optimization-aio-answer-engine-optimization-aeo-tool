@@ -2,14 +2,19 @@
 import React, { useState, useRef } from 'react';
 import { useAuthContext } from '@/context/AuthContext';
 import { useBrandContext } from '@/context/BrandContext';
-import { RefreshCw, Zap, AlertCircle, CheckCircle, RotateCcw, StopCircle } from 'lucide-react';
+import { useToast } from '@/context/ToastContext';
+import { RefreshCw, Zap, AlertCircle, CheckCircle, RotateCcw, StopCircle, CreditCard } from 'lucide-react';
 import { updateBrandWithQueryResults } from '@/firebase/firestore/getUserBrands';
+import { saveDetailedQueryResults } from '@/firebase/firestore/detailedQueryResults';
+import { calculateCumulativeAnalytics, saveBrandAnalytics } from '@/firebase/firestore/brandAnalytics';
 import { getFirebaseIdTokenWithRetry } from '@/utils/getFirebaseToken';
 
 interface ProcessQueriesButtonProps {
   brandId?: string;
   onComplete?: (result: any) => void;
   onProgress?: (results: any[]) => void; // New callback for real-time updates
+  onStart?: () => void; // New callback for when processing starts
+  onQueryStart?: (query: string) => void; // New callback for when individual query processing starts
   className?: string;
   variant?: 'primary' | 'secondary' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
@@ -19,12 +24,15 @@ export default function ProcessQueriesButton({
   brandId, 
   onComplete,
   onProgress,
+  onStart,
+  onQueryStart,
   className = '',
   variant = 'primary',
   size = 'md'
 }: ProcessQueriesButtonProps): React.ReactElement {
-  const { user, userProfile } = useAuthContext();
+  const { user, userProfile, refreshUserProfile } = useAuthContext();
   const { selectedBrand, brands, refetchBrands } = useBrandContext();
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [processing, setProcessing] = useState(false);
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error' | 'cancelled'>('idle');
   const [message, setMessage] = useState('');
@@ -66,6 +74,13 @@ export default function ProcessQueriesButton({
     if (availableCredits < requiredCredits) {
       setStatus('error');
       setMessage(`Insufficient credits. Need ${requiredCredits}, have ${availableCredits}`);
+      
+      // Show user-friendly notification
+      showError(
+        'Insufficient Credits',
+        `You need ${requiredCredits} credits to process ${queries.length} queries, but you only have ${availableCredits} credits available.`,
+      );
+      
       return;
     }
 
@@ -74,6 +89,11 @@ export default function ProcessQueriesButton({
     setMessage(`Processing ${queries.length} queries for ${brandName}... (${requiredCredits} credits)`);
     setProcessedResults([]); // Reset processed results
     cancelledRef.current = false;
+
+    // Notify parent that processing has started
+    if (onStart) {
+      onStart();
+    }
 
     try {
       // Get Firebase ID token for authentication with retry logic
@@ -104,6 +124,11 @@ export default function ProcessQueriesButton({
         }
 
         try {
+          // Notify parent that this specific query is starting
+          if (onQueryStart) {
+            onQueryStart(query.query);
+          }
+
           setMessage(`Processing query ${processedCount + 1} of ${queries.length} for ${brandName}... (10 credits per query)`);
           
           // Process individual query with authentication
@@ -137,26 +162,65 @@ export default function ProcessQueriesButton({
             try {
               const errorData = JSON.parse(errorText);
               if (errorData.code === 'INSUFFICIENT_CREDITS') {
+                // Show detailed credit error notification
+                showError(
+                  'Insufficient Credits',
+                  `You need ${errorData.requiredCredits} credits but only have ${errorData.availableCredits} available.`,
+                );
                 throw new Error(`Insufficient credits: Need ${errorData.requiredCredits}, have ${errorData.availableCredits}`);
               } else if (errorData.code === 'AUTHENTICATION_REQUIRED') {
+                showError(
+                  'Authentication Failed',
+                  'Please sign in again to continue processing queries.',
+                );
                 throw new Error('Authentication failed. Please sign in again.');
               } else {
+                showError(
+                  'Query Processing Failed',
+                  errorData.error || 'An unexpected error occurred while processing your query.',
+                );
                 throw new Error(errorData.error || `Failed to process query (${response.status})`);
               }
             } catch (parseError) {
+              showError(
+                'Network Error',
+                'Failed to communicate with the server. Please check your connection and try again.',
+              );
               throw new Error(`Failed to process query (${response.status}): ${query.query.substring(0, 30)}...`);
             }
           }
 
           const queryData = await response.json();
           
-          // Log credit deduction info
+          // 🚨🚨🚨 BROWSER CONSOLE LOGGING FOR RAW DATAFORSEO RESPONSE 🚨🚨🚨
+          console.log('🚨🚨🚨 COMPLETE API RESPONSE 🚨🚨🚨', queryData);
+          
+          // Check for Google AI Overview data specifically
+          const googleAIResult = queryData.results?.find((r: any) => r.providerId === 'google-ai-overview');
+          if (googleAIResult) {
+            console.log('🚨🚨🚨 GOOGLE AI OVERVIEW RESULT 🚨🚨🚨', googleAIResult);
+            
+            if (googleAIResult.data?.rawDataForSEOResponse) {
+              console.log('🚨🚨🚨 RAW DATAFORSEO RESPONSE IN BROWSER 🚨🚨🚨');
+              console.log(JSON.stringify(googleAIResult.data.rawDataForSEOResponse, null, 2));
+              console.log('🚨🚨🚨 RAW DATAFORSEO RESPONSE END 🚨🚨🚨');
+            } else {
+              console.log('❌ No rawDataForSEOResponse found in Google AI Overview result');
+            }
+          } else {
+            console.log('❌ No Google AI Overview result found in API response');
+          }
+          
+          // Log credit deduction info and refresh user profile
           if (queryData.userCredits) {
             console.log('💰 Credit deduction successful:', {
               before: queryData.userCredits.before,
               after: queryData.userCredits.after,
               deducted: queryData.userCredits.deducted
             });
+            
+            // Refresh user profile to update credits in sidebar
+            await refreshUserProfile();
           }
           
           // Format the result with processing session information
@@ -194,10 +258,14 @@ export default function ProcessQueriesButton({
                   location: result.data?.location || 'Unknown',
                   // Include AI Overview content if available
                   aiOverview: result.data?.aiOverview || null,
-                  serpFeatures: result.data?.serpFeatures || [],
-                  // Include other SERP data
-                  relatedSearches: result.data?.relatedSearches || [],
-                  videoResults: result.data?.videoResults || []
+                  aiOverviewReferencesCount: result.data?.aiOverviewReferences?.length || 0,
+                  hasAIOverview: result.data?.hasAIOverview || false,
+                  serpFeaturesCount: result.data?.serpFeatures?.length || 0,
+                  // Include other SERP data counts instead of arrays
+                  relatedSearchesCount: result.data?.relatedSearches?.length || 0,
+                  videoResultsCount: result.data?.videoResults?.length || 0,
+                  // Remove rawDataForSEOResponse to reduce document size
+                  hasRawData: !!(result.data?.rawDataForSEOResponse)
                 };
               } else if (result.providerId === 'perplexity') {
                 queryResult.results.perplexity = {
@@ -207,8 +275,19 @@ export default function ProcessQueriesButton({
                   responseTime: result.responseTime,
                   citations: result.data?.citations?.length || 0,
                   realTimeData: result.data?.realTimeData || false,
-                  // Include the actual citations list for display
-                  citationsList: result.data?.citations || []
+                  // Store flattened citation data to avoid nested arrays but preserve citation info
+                  citationsData: result.data?.citations ? result.data.citations.join('|||') : '',
+                  searchResultsData: result.data?.searchResults ? 
+                    result.data.searchResults.map((r: any) => `${r.title || ''}|||${r.url || ''}`).join('###') : '',
+                  structuredCitationsData: result.data?.structuredCitations ? 
+                    result.data.structuredCitations.join('|||') : '',
+                  // Store counts for display
+                  citationsCount: result.data?.citations?.length || 0,
+                  searchResultsCount: result.data?.searchResults?.length || 0,
+                  structuredCitationsCount: result.data?.structuredCitations?.length || 0,
+                  // Store metadata as simple key-value pairs (avoid nested objects/arrays)
+                  hasMetadata: !!(result.data?.metadata),
+                  hasUsageStats: !!(result.data?.usage)
                 };
               }
             });
@@ -239,6 +318,19 @@ export default function ProcessQueriesButton({
           
           console.log(`💾 Saving ${allResults.length} results for brand ${targetBrandId}`);
           
+          // Save detailed results to separate collection first
+          const { success: detailedSaveSuccess, error: detailedSaveError } = await saveDetailedQueryResults(
+            targetBrandId!,
+            targetBrand.userId,
+            targetBrand.companyName,
+            [queryResult] // Save just the current result to detailed collection
+          );
+          
+          if (!detailedSaveSuccess) {
+            console.error('❌ Error saving detailed result:', detailedSaveError);
+            // Continue anyway, as the main brand document save is more important
+          }
+          
           const { error: updateError } = await updateBrandWithQueryResults(
             targetBrandId!,
             allResults // Save all results so far
@@ -248,6 +340,37 @@ export default function ProcessQueriesButton({
             console.error('Error saving individual result:', updateError);
           } else {
             console.log(`✅ Successfully saved ${allResults.length} results`);
+          }
+
+          // Calculate and save incremental analytics after each query
+          try {
+            setMessage(`Updating analytics for ${brandName}...`);
+            
+            const analyticsData = calculateCumulativeAnalytics(
+              targetBrand.userId,
+              targetBrandId!,
+              targetBrand.companyName,
+              targetBrand.domain,
+              processingSessionId,
+              processingSessionTimestamp,
+              allResults // Use all results processed so far
+            );
+            
+            const { success: analyticsSaveSuccess, error: analyticsSaveError } = await saveBrandAnalytics(analyticsData);
+            
+            if (analyticsSaveSuccess) {
+              console.log(`✅ Incremental analytics saved after query ${processedCount}:`, {
+                totalBrandMentions: analyticsData.totalBrandMentions,
+                brandVisibilityScore: analyticsData.brandVisibilityScore,
+                totalCitations: analyticsData.totalCitations,
+                topPerformingProvider: analyticsData.insights.topPerformingProvider
+              });
+            } else {
+              console.error('❌ Error saving incremental analytics:', analyticsSaveError);
+            }
+          } catch (analyticsError) {
+            console.error('❌ Error calculating/saving incremental analytics:', analyticsError);
+            // Don't fail the entire process for analytics errors
           }
 
           // Small delay between queries
@@ -273,10 +396,39 @@ export default function ProcessQueriesButton({
       if (cancelledRef.current) {
         setStatus('cancelled');
         setMessage(`Processing cancelled. Processed ${processedCount} of ${queries.length} queries.`);
+        showWarning(
+          '⏸️ Processing Cancelled',
+          `Processed ${processedCount} of ${queries.length} queries before cancellation. You can resume processing the remaining queries anytime.`
+        );
       } else {
         setStatus('success');
         setMessage(`Successfully processed ${processedCount} queries for ${brandName}! (${processedCount * 10} credits used)`);
+        // Calculate next processing date (7 days from now)
+        const nextProcessingDate = new Date();
+        nextProcessingDate.setDate(nextProcessingDate.getDate() + 7);
+        const nextProcessingFormatted = nextProcessingDate.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        
+        showSuccess(
+          '🎉 All Queries Processed!',
+          `Successfully processed ${processedCount} queries for ${brandName}. Used ${processedCount * 10} credits.`
+        );
+        
+        // Show scheduling information after a brief delay
+        setTimeout(() => {
+          showInfo(
+            '📅 Next Processing Scheduled',
+            `Your next automatic processing is scheduled for ${nextProcessingFormatted}. You can also process queries manually anytime.`
+          );
+        }, 3000);
       }
+
+      // Analytics are now calculated and saved incrementally after each query
+      // No need for final analytics calculation since it's done per query
 
       // Call the onComplete callback if provided
       if (onComplete) {
@@ -301,8 +453,15 @@ export default function ProcessQueriesButton({
 
     } catch (error) {
       setStatus('error');
-      setMessage(error instanceof Error ? error.message : 'Failed to process queries');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process queries';
+      setMessage(errorMessage);
       console.error('Process queries error:', error);
+      
+      // Show error notification
+      showError(
+        '❌ Processing Failed',
+        'An unexpected error occurred while processing queries. Please check your connection and try again.',
+      );
       
       // Reset status after 5 seconds
       setTimeout(() => {
@@ -315,7 +474,6 @@ export default function ProcessQueriesButton({
       
       // Refresh user profile to show updated credits
       try {
-        const { refreshUserProfile } = useAuthContext();
         await refreshUserProfile();
         console.log('✅ User profile refreshed to show updated credits');
       } catch (refreshError) {

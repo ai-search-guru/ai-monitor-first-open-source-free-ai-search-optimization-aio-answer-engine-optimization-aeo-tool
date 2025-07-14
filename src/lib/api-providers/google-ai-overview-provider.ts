@@ -29,6 +29,10 @@ export class GoogleAIOverviewProvider extends BaseAPIProvider {
     const startTime = Date.now();
     const requestId = `google-ai-overview-${Date.now()}`;
 
+    console.log('🚨🚨🚨 GOOGLE AI OVERVIEW EXECUTE CALLED 🚨🚨🚨');
+    console.log('Request:', JSON.stringify(request, null, 2));
+    console.log('🚨🚨🚨 GOOGLE AI OVERVIEW EXECUTE START 🚨🚨🚨');
+
     try {
       if (!this.validateRequest(request)) {
         throw new Error('Invalid request format');
@@ -64,7 +68,14 @@ export class GoogleAIOverviewProvider extends BaseAPIProvider {
           throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
         }
 
-        return await fetchResponse.json();
+        const jsonResponse = await fetchResponse.json();
+        
+        // EXPLICIT RAW RESPONSE LOGGING
+        console.log('🚨🚨🚨 DATAFORSEO RAW RESPONSE START 🚨🚨🚨');
+        console.log(JSON.stringify(jsonResponse, null, 2));
+        console.log('🚨🚨🚨 DATAFORSEO RAW RESPONSE END 🚨🚨🚨');
+        
+        return jsonResponse;
       });
 
       // Console log the complete raw response
@@ -80,10 +91,24 @@ export class GoogleAIOverviewProvider extends BaseAPIProvider {
         cost: response.cost || 0
       });
 
+      // Log the raw items array to see what's available
+      const items = response.tasks?.[0]?.result?.[0]?.items || [];
+      console.log('🔍 Raw Items Array:', JSON.stringify(items, null, 2));
+      console.log('📝 Item Types Found:', items.map((item: any) => item.type));
+
       const transformedData = this.transformResponse(response);
       
       // Console log the transformed data
       console.log('✨ Google AI Overview Transformed Data:', JSON.stringify(transformedData, null, 2));
+      
+      // Log the content field specifically
+      console.log('📄 Content Field Value:', {
+        hasContent: !!transformedData.content,
+        contentLength: transformedData.content?.length || 0,
+        contentPreview: transformedData.content?.substring(0, 200) || 'No content',
+        aiOverview: transformedData.aiOverview,
+        hasAIOverview: transformedData.hasAIOverview
+      });
       
       const responseTime = Date.now() - startTime;
       const cost = this.calculateCost(response);
@@ -142,65 +167,60 @@ export class GoogleAIOverviewProvider extends BaseAPIProvider {
     const videoResults = items.filter((item: any) => item.type === 'video');
     const peopleAlsoSearchResults = items.filter((item: any) => item.type === 'people_also_search');
     
-    // Enhanced AI Overview extraction - look in multiple places
+    // Extract AI Overview content and references
     let aiOverview = null;
-    let aiOverviewItems = [];
+    let aiOverviewReferences = [];
     
-    // Method 1: Direct ai_overview field
-    if (result?.ai_overview) {
-      aiOverview = result.ai_overview;
-    }
-    
-    // Method 2: Look for ai_overview in items array
-    const aiOverviewItemsInResults = items.filter((item: any) => 
-      item.type === 'ai_overview' || 
-      item.type === 'ai_overview_element' ||
-      (item.type === 'organic' && item.ai_overview)
-    );
-    
-    if (aiOverviewItemsInResults.length > 0) {
-      aiOverviewItems = aiOverviewItemsInResults;
-      // Extract content from the first AI overview item
-      if (!aiOverview && aiOverviewItemsInResults[0]) {
-        aiOverview = aiOverviewItemsInResults[0].ai_overview || 
-                    aiOverviewItemsInResults[0].description || 
-                    aiOverviewItemsInResults[0].snippet;
+    // Look for AI Overview content - type: "ai_overview" with markdown property
+    const aiOverviewItems = items.filter((item: any) => item.type === 'ai_overview');
+    if (aiOverviewItems.length > 0) {
+      const aiOverviewItem = aiOverviewItems[0];
+      if (aiOverviewItem.markdown) {
+        aiOverview = aiOverviewItem.markdown;
+        console.log('✅ Found AI Overview with markdown content:', aiOverview.substring(0, 200) + '...');
+      } else if (aiOverviewItem.text) {
+        aiOverview = aiOverviewItem.text;
+        console.log('✅ Found AI Overview with text content:', aiOverview.substring(0, 200) + '...');
+      } else {
+        aiOverview = "AI Overview Present";
+        console.log('✅ Found AI Overview item but no markdown/text content');
       }
     }
     
-    // Method 3: Look for AI Overview in expanded elements
-    const expandedAIOverview = items.filter((item: any) => 
-      item.type === 'people_also_ask_element' && 
-      item.expanded_element?.some((exp: any) => 
-        exp.type === 'people_also_ask_ai_overview_expanded_element' ||
-        exp.type === 'ai_overview_expanded_element'
-      )
-    );
-    
-    if (expandedAIOverview.length > 0) {
-      aiOverviewItems = [...aiOverviewItems, ...expandedAIOverview];
+    // Look for AI Overview references - type: "ai_overview_reference" with domain and URL
+    const aiOverviewReferenceItems = items.filter((item: any) => item.type === 'ai_overview_reference');
+    if (aiOverviewReferenceItems.length > 0) {
+      aiOverviewReferences = aiOverviewReferenceItems.map((item: any) => ({
+        domain: item.domain || '',
+        url: item.url || '',
+        title: item.title || item.domain || '',
+        text: item.text || item.title || item.domain || ''
+      }));
+      console.log(`✅ Found ${aiOverviewReferences.length} AI Overview references:`, aiOverviewReferences);
     }
     
-    // Method 4: Look for featured snippets that might contain AI-generated content
-    const featuredSnippets = items.filter((item: any) => 
-      item.type === 'featured_snippet' && 
-      (item.description?.toLowerCase().includes('ai') || 
-       item.snippet?.toLowerCase().includes('generated'))
-    );
+    // Simple AI Overview detection - check for "ai_overview" in item_types
+    const rawResponseString = JSON.stringify(rawResponse);
+    const hasAIOverviewInItemTypes = rawResponseString.includes('"item_types"') && 
+                                     rawResponseString.includes('"ai_overview"');
     
-    if (featuredSnippets.length > 0 && !aiOverview) {
-      aiOverview = featuredSnippets[0].description || featuredSnippets[0].snippet;
+    // Enhanced detection - check for actual AI Overview items
+    const hasAIOverviewItems = aiOverviewItems.length > 0;
+    const hasAIOverviewRefs = aiOverviewReferenceItems.length > 0;
+    
+    // Final determination
+    const hasAIOverview = hasAIOverviewItems || hasAIOverviewInItemTypes;
+    
+    if (hasAIOverview) {
+      console.log('✅ AI Overview detected:', {
+        hasItems: hasAIOverviewItems,
+        hasReferences: hasAIOverviewRefs,
+        contentLength: aiOverview?.length || 0,
+        referencesCount: aiOverviewReferences.length
+      });
+    } else {
+      console.log('❌ No AI Overview detected');
     }
-    
-    // Log what we found for debugging
-    console.log('🔍 AI Overview Extraction Results:', {
-      hasDirectAIOverview: !!result?.ai_overview,
-      aiOverviewItemsCount: aiOverviewItemsInResults.length,
-      expandedAIOverviewCount: expandedAIOverview.length,
-      featuredSnippetsCount: featuredSnippets.length,
-      finalAIOverview: !!aiOverview,
-      totalItemTypes: [...new Set(items.map((item: any) => item.type))]
-    });
     
     return {
       status: rawResponse.status_code,
@@ -210,10 +230,17 @@ export class GoogleAIOverviewProvider extends BaseAPIProvider {
       language: task?.data?.language_name,
       device: task?.data?.device,
       
+      // Content field for Provider Manager compatibility
+      content: aiOverview || '',
+      
       // Enhanced AI Overview data
       aiOverview: aiOverview,
       aiOverviewItems: aiOverviewItems,
-      hasAIOverview: !!aiOverview,
+      aiOverviewReferences: aiOverviewReferences,
+      hasAIOverview: hasAIOverview,
+      
+      // Raw response for browser console debugging
+      rawDataForSEOResponse: rawResponse,
       
       // Organic search results
       organicResults: organicResults,
@@ -240,7 +267,7 @@ export class GoogleAIOverviewProvider extends BaseAPIProvider {
       
       // Summary counts
       totalItems: items.length,
-      itemTypes: [...new Set(items.map((item: any) => item.type))],
+      itemTypes: Array.from(new Set(items.map((item: any) => item.type))),
       
       // Metadata
       metadata: {

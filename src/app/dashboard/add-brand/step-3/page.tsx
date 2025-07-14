@@ -11,6 +11,7 @@ import addData from '@/firebase/firestore/addData';
 import { useAuthContext } from '@/context/AuthContext';
 import { generateRealisticAnalytics } from '@/utils/generateBrandData';
 import { useBrandContext } from '@/context/BrandContext';
+import { useToast } from '@/context/ToastContext';
 
 interface GeneratedQuery {
   keyword: string;
@@ -24,6 +25,7 @@ export default function AddBrandStep3(): React.ReactElement {
   const { user } = useAuthContext();
   const { refetchBrands, setSelectedBrandId, clearBrandContext } = useBrandContext();
   const { deduct: deductCredits, credits } = useUserCredits();
+  const { showSuccess, showError, showInfo } = useToast();
   const [domain, setDomain] = useState<string>('');
   const [companyData, setCompanyData] = useState<CompanyInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -203,6 +205,14 @@ Output format (return ONLY valid JSON array):
         
         console.log('✅ Found queries:', parsedQueries);
         setGeneratedQueries(parsedQueries);
+        
+        // Show success notification for auto-generated queries
+        if (parsedQueries.length > 0) {
+          showSuccess(
+            '✨ Queries Generated Successfully!',
+            `Found ${parsedQueries.length} relevant queries for ${companyData?.companyName}. You can add more or edit existing ones.`
+          );
+        }
               } catch (error) {
           console.error('❌ Failed to parse found queries:', error);
         console.error('Raw response:', queryState.result.data);
@@ -250,7 +260,10 @@ Output format (return ONLY valid JSON array):
 
     // Check if user has enough credits
     if (credits < 100) {
-      alert('Insufficient credits. You need 100 credits to complete the brand setup.');
+      showError(
+        'Insufficient Credits',
+        `You need 100 credits to complete brand setup, but you only have ${credits} credits available. Please purchase more credits to continue.`
+      );
       return;
     }
 
@@ -263,7 +276,10 @@ Output format (return ONLY valid JSON array):
       
       if (!creditSuccess) {
         console.error('❌ Failed to deduct credits:', creditError);
-        alert('Error processing credits. Please try again.');
+        showError(
+          'Credit Processing Failed',
+          'Unable to process credit deduction. Please try again or contact support if the issue persists.'
+        );
         setIsCompleting(false);
         return;
       }
@@ -356,7 +372,10 @@ Output format (return ONLY valid JSON array):
         console.log('🔄 Refunding credits due to save error...');
         await deductCredits(-100); // Add credits back
         
-        alert('Error saving brand data. Please try again.');
+        showError(
+          'Save Failed',
+          'Unable to save your brand data. Your credits have been refunded. Please try again.'
+        );
         setIsCompleting(false);
         return;
       }
@@ -377,6 +396,21 @@ Output format (return ONLY valid JSON array):
       setSelectedBrandId(brandId);
       
       console.log('✅ Brand setup completed successfully! (100 credits deducted)');
+      
+      // Show comprehensive completion notification
+      showSuccess(
+        '🎉 Brand Setup Complete!',
+        `${companyData.companyName} has been added with ${generatedQueries.length} queries. Your first processing is ready to begin!`
+      );
+      
+      // Show info about next steps
+      setTimeout(() => {
+        showInfo(
+          'Ready to Process Queries',
+          'You can now process your queries to see how AI platforms respond to questions about your brand. Each query costs 10 credits.'
+        );
+      }, 2000);
+      
       console.log('🎯 Redirecting directly to queries page...');
       
       // Navigate directly to queries page
@@ -393,7 +427,10 @@ Output format (return ONLY valid JSON array):
         console.error('❌ Failed to refund credits:', refundError);
       }
       
-      alert('An error occurred during setup completion. Please try again.');
+      showError(
+        'Setup Failed',
+        'An unexpected error occurred during brand setup. Please try again or contact support if the issue persists.'
+      );
       setIsCompleting(false);
     }
   };
@@ -498,6 +535,13 @@ Output format (return ONLY valid JSON array):
       };
       
       setGeneratedQueries(prev => [...prev, newQueryObject]);
+      
+      // Show success notification
+      showSuccess(
+        'Query Added Successfully!',
+        `Added "${newQuery.trim()}" to your ${selectedCategory.toLowerCase()} queries.`
+      );
+      
       setNewQuery('');
       setSelectedCategory('Awareness');
       setShowAddQueryModal(false);

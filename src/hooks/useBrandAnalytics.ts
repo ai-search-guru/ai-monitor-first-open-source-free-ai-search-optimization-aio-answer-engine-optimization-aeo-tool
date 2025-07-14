@@ -1,118 +1,210 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useBrandContext } from '@/context/BrandContext';
-import { useAuthContext } from '@/context/AuthContext';
+'use client'
+import { useState, useEffect } from 'react';
+import { 
+  getLatestBrandAnalytics, 
+  getBrandAnalyticsHistory, 
+  getUserBrandAnalytics,
+  calculateLifetimeBrandAnalytics,
+  type BrandAnalyticsData, 
+  type BrandAnalyticsHistory,
+  type LifetimeBrandAnalytics
+} from '@/firebase/firestore/brandAnalytics';
 
-interface AnalyticsData {
-  overview: {
-    totalMentions: number;
-    positiveRatio: number;
-    averageVisibility: number;
-    responseAccuracy: number;
-  };
-  timeSeriesData: {
-    date: string;
-    mentions: number;
-    sentiment: number;
-    visibility: number;
-  }[];
-  topQueries: {
-    query: string;
-    count: number;
-    sentiment: 'positive' | 'negative' | 'neutral';
-    aiProvider: string;
-  }[];
-  performanceMetrics: {
-    brandsDetected: number;
-    linksProvided: number;
-    accurateResponses: number;
-    responseTime: number;
-  };
-}
-
-interface UseBrandAnalyticsReturn {
-  data: AnalyticsData | null;
-  loading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
-}
-
-export function useBrandAnalytics(): UseBrandAnalyticsReturn {
-  const { user } = useAuthContext();
-  const { selectedBrand, selectedBrandId, loading: brandLoading } = useBrandContext();
-  const [data, setData] = useState<AnalyticsData | null>(null);
+// Hook for getting latest brand analytics (session-based)
+export function useLatestBrandAnalytics(brandId: string | undefined) {
+  const [analytics, setAnalytics] = useState<BrandAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAnalytics = useCallback(async () => {
-    if (!user?.uid || !selectedBrandId || brandLoading) {
-      setLoading(false);
-      return;
-    }
+  useEffect(() => {
+    async function fetchAnalytics() {
+      if (!brandId) {
+        setAnalytics(null);
+        setLoading(false);
+        return;
+      }
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Mock data specific to the selected brand
-      const mockData: AnalyticsData = {
-        overview: {
-          totalMentions: Math.floor(Math.random() * 5000) + 1000,
-          positiveRatio: Math.floor(Math.random() * 30) + 70,
-          averageVisibility: Math.floor(Math.random() * 20) + 75,
-          responseAccuracy: Math.floor(Math.random() * 15) + 85
-        },
-        timeSeriesData: Array.from({ length: 30 }, (_, i) => ({
-          date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          mentions: Math.floor(Math.random() * 50) + 10,
-          sentiment: Math.random() * 2 + 7, // 7-9 range
-          visibility: Math.floor(Math.random() * 30) + 70
-        })),
-        topQueries: [
-          {
-            query: `What is ${selectedBrand?.companyName || 'this company'}?`,
-            count: 156,
-            sentiment: 'positive',
-            aiProvider: 'ChatGPT'
-          },
-          {
-            query: `How does ${selectedBrand?.companyName || 'this service'} work?`,
-            count: 134,
-            sentiment: 'neutral',
-            aiProvider: 'Claude'
-          },
-          {
-            query: `${selectedBrand?.companyName || 'Company'} vs competitors`,
-            count: 98,
-            sentiment: 'positive',
-            aiProvider: 'Gemini'
-          }
-        ],
-        performanceMetrics: {
-          brandsDetected: Math.floor(Math.random() * 50) + 200,
-          linksProvided: Math.floor(Math.random() * 30) + 180,
-          accurateResponses: Math.floor(Math.random() * 20) + 175,
-          responseTime: Math.random() * 0.5 + 0.8
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const { result, error: fetchError } = await getLatestBrandAnalytics(brandId);
+        
+        if (fetchError) {
+          setError('Failed to fetch analytics');
+          console.error('Analytics fetch error:', fetchError);
+        } else {
+          setAnalytics(result || null);
         }
-      };
-
-      setData(mockData);
-    } catch (err) {
-      console.error('Error fetching brand analytics:', err);
-      setError('Failed to load analytics data. Please try again.');
-      setData(null);
-    } finally {
-      setLoading(false);
+      } catch (err) {
+        setError('Failed to fetch analytics');
+        console.error('Analytics error:', err);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [user?.uid, selectedBrandId, selectedBrand?.companyName, brandLoading]);
+
+    fetchAnalytics();
+  }, [brandId]);
+
+  return { analytics, loading, error };
+}
+
+// Hook for getting lifetime brand analytics (all historical data)
+export function useLifetimeBrandAnalytics(brandId: string | undefined) {
+  const [lifetimeAnalytics, setLifetimeAnalytics] = useState<LifetimeBrandAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
+    async function fetchLifetimeAnalytics() {
+      if (!brandId) {
+        setLifetimeAnalytics(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const { result, error: fetchError } = await calculateLifetimeBrandAnalytics(brandId);
+        
+        if (fetchError) {
+          setError('Failed to calculate lifetime analytics');
+          console.error('Lifetime analytics error:', fetchError);
+        } else {
+          setLifetimeAnalytics(result || null);
+        }
+      } catch (err) {
+        setError('Failed to calculate lifetime analytics');
+        console.error('Lifetime analytics error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchLifetimeAnalytics();
+  }, [brandId]);
+
+  return { lifetimeAnalytics, loading, error };
+}
+
+// Combined hook for getting both latest and lifetime analytics
+export function useBrandAnalyticsCombined(brandId: string | undefined) {
+  const { analytics: latestAnalytics, loading: latestLoading, error: latestError } = useLatestBrandAnalytics(brandId);
+  const { lifetimeAnalytics, loading: lifetimeLoading, error: lifetimeError } = useLifetimeBrandAnalytics(brandId);
+
+  const loading = latestLoading || lifetimeLoading;
+  const error = latestError || lifetimeError;
 
   return {
-    data,
+    latestAnalytics,
+    lifetimeAnalytics,
     loading,
     error,
-    refetch: fetchAnalytics
+    hasLatestData: !!latestAnalytics,
+    hasLifetimeData: !!lifetimeAnalytics
   };
+}
+
+// Hook for getting brand analytics history with trend analysis
+export function useBrandAnalyticsHistory(brandId: string | undefined) {
+  const [history, setHistory] = useState<BrandAnalyticsHistory | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchHistory() {
+      if (!brandId) {
+        setHistory(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const { result, error: fetchError } = await getBrandAnalyticsHistory(brandId);
+        
+        if (fetchError) {
+          setError('Failed to fetch analytics history');
+          console.error('Analytics history error:', fetchError);
+        } else {
+          setHistory(result || null);
+        }
+      } catch (err) {
+        setError('Failed to fetch analytics history');
+        console.error('Analytics history error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchHistory();
+  }, [brandId]);
+
+  return { history, loading, error };
+}
+
+// Hook for getting all user brand analytics
+export function useUserBrandAnalytics(userId: string | undefined) {
+  const [userAnalytics, setUserAnalytics] = useState<BrandAnalyticsData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchUserAnalytics() {
+      if (!userId) {
+        setUserAnalytics([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const { result, error: fetchError } = await getUserBrandAnalytics(userId);
+        
+        if (fetchError) {
+          setError('Failed to fetch user analytics');
+          console.error('User analytics error:', fetchError);
+        } else {
+          setUserAnalytics(result || []);
+        }
+      } catch (err) {
+        setError('Failed to fetch user analytics');
+        console.error('User analytics error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchUserAnalytics();
+  }, [userId]);
+
+  return { userAnalytics, loading, error };
+}
+
+// Hook for aggregated user analytics summary
+export function useUserAnalyticsSummary(userId: string | undefined) {
+  const { userAnalytics, loading, error } = useUserBrandAnalytics(userId);
+
+  const summary = {
+    totalBrands: userAnalytics.length,
+    totalBrandMentions: userAnalytics.reduce((sum, analytics) => sum + analytics.totalBrandMentions, 0),
+    totalCitations: userAnalytics.reduce((sum, analytics) => sum + analytics.totalCitations, 0),
+    averageVisibilityScore: userAnalytics.length > 0 
+      ? userAnalytics.reduce((sum, analytics) => sum + analytics.brandVisibilityScore, 0) / userAnalytics.length
+      : 0,
+    topPerformingBrand: userAnalytics.length > 0
+      ? userAnalytics.reduce((prev, current) => 
+          prev.totalBrandMentions > current.totalBrandMentions ? prev : current
+        ).brandName
+      : null
+  };
+
+  return { summary, loading, error };
 } 

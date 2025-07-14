@@ -2,6 +2,7 @@ import React from 'react';
 import { AuthContextProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { BrandContextProvider } from '@/context/BrandContext';
+import { ToastProvider } from '@/context/ToastContext';
 import { Inter } from 'next/font/google';
 import './globals.css';
 
@@ -28,7 +29,9 @@ export default function RootLayout( { children }: { children: React.ReactNode } 
         <ThemeProvider>
           <AuthContextProvider>
             <BrandContextProvider>
-              {children}
+              <ToastProvider>
+                {children}
+              </ToastProvider>
             </BrandContextProvider>
           </AuthContextProvider>
         </ThemeProvider>
