@@ -66,35 +66,19 @@ export default function AllSearchesPage(): React.ReactElement {
     queries.forEach((query: any) => {
       if (!query.results) return;
       
-      // Extract citations from each provider
-      ['chatgpt', 'perplexity', 'googleAI'].forEach(provider => {
-        const result = query.results[provider];
-        if (!result) return;
-
-        let providerCitations: { url: string; text: string; source?: string }[] = [];
-        
-        switch (provider) {
-          case 'chatgpt':
-            providerCitations = extractChatGPTCitations(result.response || '');
-            break;
-          case 'perplexity':
-            providerCitations = extractPerplexityCitations(result.response || '');
-            break;
-          case 'googleAI':
-            providerCitations = extractGoogleAIOverviewCitations(result.response || '', result);
-            break;
-        }
-
-        providerCitations.forEach((citation, index) => {
+      // Extract ChatGPT citations
+      if (query.results?.chatgpt?.response) {
+        const chatgptCitations = extractChatGPTCitations(query.results.chatgpt.response);
+        chatgptCitations.forEach((citation, index) => {
           const domain = extractDomainFromUrl(citation.url);
           if (!domain) return;
 
           citations.push({
-            id: `${query.id}-${provider}-${index}`,
+            id: `${query.id}-chatgpt-${index}`,
             url: citation.url,
             text: citation.text,
-            source: citation.source || provider,
-            provider: provider as 'chatgpt' | 'perplexity' | 'googleAI',
+            source: citation.source || 'ChatGPT',
+            provider: 'chatgpt' as 'chatgpt' | 'perplexity' | 'googleAI',
             query: query.query,
             queryId: query.id,
             brandName: selectedBrand?.name || '',
@@ -104,7 +88,55 @@ export default function AllSearchesPage(): React.ReactElement {
             isDomainCitation: checkDomainCitation(citation.url, selectedBrand?.domain)
           });
         });
-      });
+      }
+
+      // Extract Google AI citations
+      if (query.results?.googleAI?.aiOverview) {
+        const googleCitations = extractGoogleAIOverviewCitations(query.results.googleAI.aiOverview, query.results.googleAI);
+        googleCitations.forEach((citation, index) => {
+          const domain = extractDomainFromUrl(citation.url);
+          if (!domain) return;
+
+          citations.push({
+            id: `${query.id}-googleAI-${index}`,
+            url: citation.url,
+            text: citation.text,
+            source: citation.source || 'Google AI',
+            provider: 'googleAI' as 'chatgpt' | 'perplexity' | 'googleAI',
+            query: query.query,
+            queryId: query.id,
+            brandName: selectedBrand?.name || '',
+            domain,
+            timestamp: query.timestamp || new Date().toISOString(),
+            isBrandMention: checkBrandMention(citation.text, citation.url, selectedBrand?.name || '', selectedBrand?.domain),
+            isDomainCitation: checkDomainCitation(citation.url, selectedBrand?.domain)
+          });
+        });
+      }
+
+      // Extract Perplexity citations
+      if (query.results?.perplexity?.response) {
+        const perplexityCitations = extractPerplexityCitations(query.results.perplexity.response);
+        perplexityCitations.forEach((citation, index) => {
+          const domain = extractDomainFromUrl(citation.url);
+          if (!domain) return;
+
+          citations.push({
+            id: `${query.id}-perplexity-${index}`,
+            url: citation.url,
+            text: citation.text,
+            source: citation.source || 'Perplexity',
+            provider: 'perplexity' as 'chatgpt' | 'perplexity' | 'googleAI',
+            query: query.query,
+            queryId: query.id,
+            brandName: selectedBrand?.name || '',
+            domain,
+            timestamp: query.timestamp || new Date().toISOString(),
+            isBrandMention: checkBrandMention(citation.text, citation.url, selectedBrand?.name || '', selectedBrand?.domain),
+            isDomainCitation: checkDomainCitation(citation.url, selectedBrand?.domain)
+          });
+        });
+      }
     });
 
     return citations;
