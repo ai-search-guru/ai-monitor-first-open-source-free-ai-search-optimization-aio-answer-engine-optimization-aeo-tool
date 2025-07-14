@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { useBrandQueries } from '@/hooks/useBrandQueries';
 import type { LifetimeBrandAnalytics } from '@/firebase/firestore/brandAnalytics';
@@ -19,6 +19,14 @@ const providerColors = {
 
 export default function LifetimeAnalyticsCharts({ lifetimeAnalytics, brandId }: LifetimeAnalyticsChartsProps) {
   const { queries, loading: queriesLoading } = useBrandQueries({ brandId });
+
+  // Log the first query result for debugging
+  useEffect(() => {
+    if (queries.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log('Sample query for LifetimeAnalyticsCharts:', queries[0]);
+    }
+  }, [queries]);
 
   // --- Trend Line Data ---
   const trendData = useMemo(() => {
