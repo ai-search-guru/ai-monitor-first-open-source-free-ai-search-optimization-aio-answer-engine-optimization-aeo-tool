@@ -6,6 +6,13 @@ Data Encryption: All data encrypted in transit and at rest
 API Security: Rate limiting and request validation
 Privacy: GDPR and CCPA compliant data handling
 
+To report a security vulnerability, please send an email to [avi@getaimonitor.com](mailto:avi@getaimonitor.com) with the following details:
+
+- A clear description of the vulnerability and the potential impact.
+- Steps to reproduce the vulnerability or a proof-of-concept.
+- Any additional information or tools that can help reproduce the issue.
+
+
 Security Best Practices
 bash# Environment variables security
 # Never commit .env files to version control
@@ -54,9 +61,19 @@ Tailwind CSS - Utility-first CSS framework
 TypeScript - JavaScript with type safety
 Vercel - Deployment and hosting platform
 
+Thank you for your commitment to keeping this project secure!
 Special thanks to our contributors and the open-source community! 🎉
 
-<div align="center">
-⭐ Star this repository if you found it helpful!
-Made with ❤️ by the AI Monitor Team
-Website • Documentation • Discord • Twitter
+<div>
+
+### 🌟 **[⭐ Star this repository](https://github.com/yourusername/ai-monitor-tool)** if you found it helpful!
+
+<br>
+
+<img src="https://img.shields.io/github/stars/yourusername/ai-monitor-tool?style=social" alt="GitHub stars">
+<img src="https://img.shields.io/github/forks/yourusername/ai-monitor-tool?style=social" alt="GitHub forks">
+<img src="https://img.shields.io/twitter/follow/Avi_lawpreneur?style=social" alt="Twitter Follow">
+
+<br><br>
+
+</div>
