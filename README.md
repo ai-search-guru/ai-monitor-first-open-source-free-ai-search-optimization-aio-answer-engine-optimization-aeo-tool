@@ -1,44 +1,70 @@
-# Next.js 13 Firebase Starter
+# 🤖 AI Monitor - the World's First Free & Open Source AI Optimization Tool (AIO), Answer Engine Optimization (AEO), or Generative Engine Optimization (GEO)
 
-This is a starter template for building Next.js 13 applications with Firebase. It provides a solid foundation for developing modern web applications with server-side rendering, authentication, and real-time data synchronization.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-13.0-black.svg)](https://nextjs.org/)
+[![Firebase](https://img.shields.io/badge/Firebase-9.0-orange.svg)](https://firebase.google.com/)
 
-## Features
+A comprehensive AI-powered monitoring and optimization tool for **AI Optimization (AIO)**, **Answer Engine Optimization (AEO)**, and **Generative Engine Optimization (GEO)**. Monitor your digital presence across AI-powered search engines and optimize your content for maximum visibility.
 
-- Next.js 13: Build powerful and scalable server-side rendered React applications.
-- Firebase: Leverage the Firebase platform for authentication, real-time database, and cloud functions.
-- Tailwind CSS: Rapidly build custom user interfaces using the utility-first CSS framework.
-- Automatic Code Splitting: Optimize performance by splitting your JavaScript code into smaller, cacheable chunks.
-- Dynamic Routing: Create dynamic routes for handling different pages and content.
-- Hot Module Replacement: Enjoy a fast development experience with hot module replacement for instant code changes.
-- Environment Variables: Safely manage environment-specific configuration values using environment variables.
-- ESLint and Prettier: Maintain code quality and consistency with the help of ESLint and Prettier.
+![AI Monitor Preview](https://your-image-url-here.com/preview.png)
 
-## Prerequisites
+## 📚 Table of Contents
 
-Before getting started, ensure you have the following prerequisites:
+- [✨ Features](#-features)
+- [🚀 Quick Start](#-quick-start)
+- [📋 Prerequisites](#-prerequisites)
+- [⚙️ Installation](#️-installation)
+- [🔧 Configuration](#-configuration)
+- [🔐 Authentication Setup](#-authentication-setup)
+- [🤖 AI Provider Configuration](#-ai-provider-configuration)
+- [📁 Project Structure](#-project-structure)
+- [🚀 Deployment](#-deployment)
+- [🧪 Testing](#-testing)
+- [🛠️ Troubleshooting](#️-troubleshooting)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
 
-- Node.js 14 or higher
-- npm or yarn package manager
+## ✨ Features
 
-## Getting Started
+### 🎯 Core Capabilities
+- **Multi-Engine Optimization**: Optimize content for ChatGPT, Perplexity, Gemini, and other AI search engines
+- **Real-time Monitoring**: Track your content's performance across AI-powered platforms
+- **Advanced Analytics**: Get detailed insights into AI visibility and ranking factors
+- **Content Optimization**: AI-powered suggestions for improving content discoverability
 
-- To start a new project using this template click `Use this template` button.
-- Navigate into the project directory: `cd nextjs-13-firebase-starter`
-- Install the dependencies:
+### 🛠️ Technical Features
+- **Next.js 13+**: Server-side rendering with App Router and React Server Components
+- **Multi-Provider AI**: Azure OpenAI (primary) with Google Gemini fallback system
+- **Firebase Integration**: Authentication, Firestore database, and cloud functions
+- **Responsive Design**: Mobile-first UI built with Tailwind CSS
+- **Real-time Updates**: Live data synchronization and notifications
+- **Enterprise Security**: Role-based access control and data encryption
+
+### 🚀 Performance & Scalability
+- **Automatic Code Splitting**: Optimized bundle sizes for faster loading
+- **Edge Deployment**: Deploy globally with Vercel Edge Functions
+- **Caching Strategy**: Intelligent caching for API responses and static assets
+- **Progressive Web App**: Offline functionality and mobile app experience
+
+## 🚀 Quick Start
+
+Get up and running in less than 5 minutes:
 
 ```bash
-  npm install
-  # or
-  yarn install
-```
+# Clone the repository
+git clone https://github.com/yourusername/ai-monitor-tool.git
+cd ai-monitor-tool
 
-- Run the development server:
+# Install dependencies
+npm install
 
-```bash
-  npm run dev
-  # or
-  yarn dev
-```
+# Copy environment template
+cp .env.example .env.local
+
+# Start development server
+npm run dev
+
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
@@ -82,16 +108,74 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 
 Example...
 
-```md
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-```
+# Azure OpenAI Configuration (Required)
+AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
+AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com
+AZURE_OPENAI_DEPLOYMENT=gpt-4
+AZURE_OPENAI_API_VERSION=2024-02-01
 
-- Create `env` file and paste these variables with your own information.
+# Google Gemini Configuration (Optional)
+# Get your API key from: https://ai.google.dev/
+GOOGLE_AI_API_KEY=your_google_ai_api_key_here
+# Alternative name for Gemini API key
+# GEMINI_API_KEY=your_google_ai_api_key_here
+
+# Firebase Configuration (Required for authentication and data storage)
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abcdef123456
+
+# Other API Keys (Optional)
+# Add other API keys as needed for additional providers
+# Firebase Configuration
+# Get these values from your Firebase project settings
+# https://console.firebase.google.com/
+
+
+# Optional: Firebase Measurement ID (for Google Analytics)
+# NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
+
+# Next.js Configuration
+NEXTAUTH_URL=
+NEXTAUTH_SECRET=
+
+# Development Environment
+NODE_ENV=development
+
+# Optional: Custom App Settings
+NEXT_PUBLIC_APP_NAME=AI Monitor Free & Open Source AIO, AEO or GEO Tool
+NEXT_PUBLIC_APP_VERSION=10.0.0
+
+
+SBOT_API_KEY=
+
+SFLY_API_Key=
+
+
+# Google Gemini Configuration (Optional)
+# Get your API key from: https://ai.google.dev/
+GOOGLE_AI_API_KEY=
+# Alternative name for Gemini API key
+GEMINI_API_KEY=
+
+
+OPENAI_API_KEY=sk-xxxx-x
+
+
+# DataForSEO Configuration (for Google AI Overview)
+DATAFORSEO_USERNAME=
+DATAFORSEO_PASSWORD=
+
+
+PERPLEXITY_API_KEY=
+
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
+
+- Duplicate the `env.example` file and paste these variables with your own information.
 - Click on `Continue on console` button
 - On your project homepage, choose a product to add to your app. First, click on `Authentication`.
 - Under `Get started with Firebase Auth by adding your first sign-in method` select `Email/Password`.
@@ -100,7 +184,93 @@ You should now be setup to use Firebase.
 
 ## Authentication
 
-- In `src/firebase` directory, exists the directory `auth` containing the logic for `signin` and `signup`.
+The application includes comprehensive authentication and route protection:
+
+### Firebase Authentication Setup
+- In `src/firebase/auth` directory contains the logic for `signin`, `signup`, `signOut`, and `googleSignIn`
+- Uses Firebase Auth for user management with email/password and Google OAuth
+
+### Route Protection
+- **Dashboard routes**: All `/dashboard/*` routes are protected and require authentication
+- **Client-side protection**: Uses `AuthContext` and `ProtectedRoute` component for client-side route guards
+- **API protection**: Optional server-side protection using middleware and token verification
+- **Admin routes**: Special protection for admin-only pages using email whitelist
+
+### Authentication Components
+- `AuthContext`: Provides authentication state across the application
+- `ProtectedRoute`: Reusable component for protecting routes
+- `AuthStatus`: Shows current authentication status with sign-out functionality
+
+### Usage Examples
+
+```tsx
+// Protect a route
+<ProtectedRoute>
+  <YourComponent />
+</ProtectedRoute>
+
+// Protect admin routes
+<ProtectedRoute 
+  requireAdmin={true} 
+  adminEmails={['admin@example.com']}
+>
+  <AdminPanel />
+</ProtectedRoute>
+
+// Check auth status
+const { user, loading } = useAuthContext();
+```
+
+### Security Features
+- Automatic redirection to sign-in for unauthenticated users
+- Loading states during authentication checks
+- Admin role verification
+- Firestore security rules (see `firestore.rules`)
+
+## AI Provider Configuration
+
+This application uses a multi-provider AI system with Azure OpenAI as the primary provider and Google Gemini as fallback. This ensures high availability and cost optimization.
+
+### Azure OpenAI Configuration (Primary Provider)
+
+1. Create an Azure OpenAI resource in the Azure portal
+2. Deploy a GPT-4 model in your Azure OpenAI service
+3. Add the following environment variables to your `.env` file:
+
+```md
+AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
+AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com
+AZURE_OPENAI_DEPLOYMENT=gpt-4
+AZURE_OPENAI_API_VERSION=2024-02-01
+```
+
+### Google Gemini Configuration (Fallback Provider)
+
+1. Get a Google AI API key from the [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Add the following environment variable to your `.env` file:
+
+```md
+GOOGLE_AI_API_KEY=your_google_ai_api_key_here
+# or alternatively
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+### How the Fallback System Works
+
+- **Primary**: Azure OpenAI is attempted first for all AI requests
+- **Fallback**: If Azure OpenAI fails or is unavailable, the system automatically falls back to Google Gemini
+- **Monitoring**: All provider responses, costs, and response times are logged for monitoring
+- **Cost Tracking**: The system tracks costs across providers to help optimize usage
+
+### Testing the AI Providers
+
+You can test the AI provider configuration by running:
+
+```bash
+node test-company-info.js
+```
+
+This will test the company information extraction API with sample domains and show which providers are being used.
 
 ## Folder Structure
 
