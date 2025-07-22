@@ -1,41 +1,62 @@
-# Security Policy
+# 🔒 Security
 
-## Reporting Security Vulnerabilities
+Authentication: Firebase Auth with email/password and OAuth
+Authorization: Role-based access control (RBAC)
+Data Encryption: All data encrypted in transit and at rest
+API Security: Rate limiting and request validation
+Privacy: GDPR and CCPA compliant data handling
 
-Security is taken seriously and appreciation for the efforts of security researchers and the community in helping to maintain a secure ecosystem. If you discover any security vulnerabilities in this project, please responsibly disclose them.
+Security Best Practices
+bash# Environment variables security
+# Never commit .env files to version control
+echo ".env.local" >> .gitignore
 
-To report a security vulnerability, please send an email to [scottmilliorn@gmail.com](mailto:security@yourproject.com) with the following details:
+# Use strong secrets for NextAuth
+NEXTAUTH_SECRET=$(openssl rand -base64 32)
 
-- A clear description of the vulnerability and the potential impact.
-- Steps to reproduce the vulnerability or a proof-of-concept.
-- Any additional information or tools that can help reproduce the issue.
+# Regularly rotate API keys
+# Monitor API usage for anomalies
+📈 Performance Optimization
+Built-in Optimizations
 
-Kindly request that you allow sufficient time to investigate and address the vulnerability before disclosing it to the public or to any third parties.
+Code Splitting: Automatic chunking for faster load times
+Image Optimization: Next.js Image component with WebP support
+Caching: Redis-based caching for API responses
+CDN: Global content delivery via Vercel Edge Network
 
-## Security Response Process
+Performance Monitoring
+javascript// lib/performance.js
+export function measurePerformance(name, fn) {
+  const start = performance.now();
+  const result = await fn();
+  const end = performance.now();
+  
+  console.log(`${name} took ${end - start} milliseconds`);
+  return result;
+}
+📄 License
+This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License Summary
 
-Once a security vulnerability is reported, you will receive a receipt of acknowledgement. Report will be reviewed, investigated, to determine appropriate course of action.
+✅ Commercial use: Use this software commercially
+✅ Modification: Modify the source code
+✅ Distribution: Distribute copies of the software
+✅ Private use: Use the software privately
+❌ Liability: The authors are not liable for damages
+❌ Warranty: No warranty is provided
 
-Please maintain an open line of communication throughout the process. Regular updates will be given on the progress of resolving the vulnerability and notify you when it has been fully addressed.
+🙏 Acknowledgments
+This project was built with amazing open-source technologies:
 
-If the vulnerability is confirmed, diligent work will be done to develop and release a fix or mitigation as soon as possible. Additional details or clarifications during this process may be requested.
+Next.js - The React Framework for Production
+Firebase - Google's app development platform
+Tailwind CSS - Utility-first CSS framework
+TypeScript - JavaScript with type safety
+Vercel - Deployment and hosting platform
 
-## Disclosure Policy
+Special thanks to our contributors and the open-source community! 🎉
 
-We follow a responsible disclosure policy. As a security researcher, you are ask to adhere to the following guidelines:
-
-- Do not access or modify other users' data without their explicit consent.
-- Do not perform any disruptive or destructive actions.
-- Do not publicly disclose the vulnerability this project has addressed it.
-
-Credit to the individuals or organizations who report valid security vulnerabilities upon request. If you would like to be credited, give notice in your report.
-
-## Scope
-
-Please note that this security policy applies to this project and its associated repositories. Any vulnerabilities found in third-party dependencies should be reported to the respective maintainers or the appropriate vulnerability tracking platform.
-
-## Help Wanted
-
-Appreciation will be shown for your efforts in helping maintain the security of this project. If you have any suggestions or feedback regarding the security practices or this security policy, please feel free to email at [scottmilliorn@gmail.com](mailto:scottmilliorn@google.com).
-
-Thank you for your commitment to keeping this project secure!
+<div align="center">
+⭐ Star this repository if you found it helpful!
+Made with ❤️ by the AI Monitor Team
+Website • Documentation • Discord • Twitter
