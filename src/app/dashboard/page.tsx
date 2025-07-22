@@ -25,6 +25,7 @@ import BrandAnalyticsDisplay from '@/components/features/BrandAnalyticsDisplay';
 import { useBrandAnalyticsCombined } from '@/hooks/useBrandAnalytics';
 import LifetimeAnalyticsCharts from '@/components/features/LifetimeAnalyticsCharts';
 import QueriesContent from '@/app/dashboard/queries/queries-content';
+import CompetitorMentionsCard from '@/components/features/CompetitorMentionsCard';
 
 
 // Recommendations Data manually updated on a weekly basis
@@ -249,7 +250,7 @@ function Page(): React.ReactElement {
   // Show loading while brands are being fetched
   if (brandsLoading) {
     return (
-      <DashboardLayout title="Analytics">
+      <DashboardLayout>
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center space-x-2 text-muted-foreground">
             <RefreshCw className="h-5 w-5 animate-spin" />
@@ -263,7 +264,7 @@ function Page(): React.ReactElement {
   // Show empty state if no brands
   if (brands.length === 0) {
     return (
-      <DashboardLayout title="Analytics">
+      <DashboardLayout>
         <div className="text-center py-12">
           <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">No Brands Found</h3>
@@ -281,7 +282,7 @@ function Page(): React.ReactElement {
   // Show message if no brand is selected
   if (!selectedBrand) {
     return (
-      <DashboardLayout title="Analytics">
+      <DashboardLayout>
         <div className="text-center py-12">
           <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">No Brand Selected</h3>
@@ -298,7 +299,7 @@ function Page(): React.ReactElement {
   const showLifetimeFirst = !latestAnalytics && !!lifetimeAnalytics;
 
   return (
-    <DashboardLayout title="Analytics">
+    <DashboardLayout>
       <div className="space-y-6">
         {/* --- Analytics Section (First Available) --- */}
         {showLatestFirst && (
@@ -333,6 +334,9 @@ function Page(): React.ReactElement {
             window.location.href = '/dashboard/queries';
           }}
         />
+
+        {/* --- Competitor Mentions Section --- */}
+        <CompetitorMentionsCard />
 
         {/* --- Remaining Analytics Section (if both exist) --- */}
         {/* {latestAnalytics && lifetimeAnalytics && (

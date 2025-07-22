@@ -3,28 +3,54 @@ import React from 'react';
 import Link from 'next/link';
 import { useBrandContext } from '@/context/BrandContext';
 import { useCompetitors } from '@/hooks/useCompetitors';
+import { useBrandAnalyticsCombined } from '@/hooks/useBrandAnalytics';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Card from '@/components/shared/Card';
 import WebLogo from '@/components/shared/WebLogo';
+import CompetitorProcessor from '@/components/CompetitorProcessor';
 import { 
   Users, 
-  TrendingUp, 
-  TrendingDown,
+  TrendingUp,
   RefreshCw,
   AlertCircle,
   Eye,
-  MessageSquare,
-  Heart
+  MessageSquare
 } from 'lucide-react';
 
 export default function CompetitorsPage(): React.ReactElement {
   const { selectedBrand, brands, loading: brandLoading } = useBrandContext();
   const { competitors, loading: competitorsLoading, error, refetch } = useCompetitors();
+  
+  // Get real brand analytics data for SOV calculation
+  const { 
+    latestAnalytics, 
+    lifetimeAnalytics 
+  } = useBrandAnalyticsCombined(selectedBrand?.id);
+  
+  // Use the most recent analytics data available
+  const brandAnalytics = latestAnalytics || lifetimeAnalytics;
+  
+  // Calculate SOV metrics
+  const totalCompetitorMentions = competitors.reduce((sum, comp) => sum + comp.mentions, 0);
+  const realBrandMentions = brandAnalytics?.totalBrandMentions || 0;
+  const totalMarketMentions = realBrandMentions + totalCompetitorMentions;
+  
+  // Calculate accurate Share of Voice
+  const brandShareOfVoice = totalMarketMentions > 0 ? Math.round((realBrandMentions / totalMarketMentions) * 100) : 100;
+  const competitorShareOfVoice = totalMarketMentions > 0 ? Math.round((totalCompetitorMentions / totalMarketMentions) * 100) : 0;
+  
+  // Calculate user's brand market ranking
+  const sortedMarketData = [
+    { name: selectedBrand?.companyName || 'Your Brand', value: realBrandMentions, isUserBrand: true },
+    ...competitors.map(comp => ({ name: comp.name, value: comp.mentions, isUserBrand: false }))
+  ].filter(item => item.value > 0).sort((a, b) => b.value - a.value);
+  
+  const userBrandRank = sortedMarketData.findIndex(item => item.isUserBrand) + 1;
 
   // Show loading while brands are being fetched
   if (brandLoading) {
     return (
-      <DashboardLayout title="Competitors">
+      <DashboardLayout>
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center space-x-2 text-muted-foreground">
             <RefreshCw className="h-5 w-5 animate-spin" />
@@ -38,7 +64,7 @@ export default function CompetitorsPage(): React.ReactElement {
   // Show empty state if no brands
   if (brands.length === 0) {
     return (
-      <DashboardLayout title="Competitors">
+      <DashboardLayout>
         <div className="text-center py-12">
           <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">No Brands Found</h3>
@@ -56,7 +82,7 @@ export default function CompetitorsPage(): React.ReactElement {
   // Show message if no brand is selected
   if (!selectedBrand) {
     return (
-      <DashboardLayout title="Competitors">
+      <DashboardLayout>
         <div className="text-center py-12">
           <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">No Brand Selected</h3>
@@ -69,7 +95,7 @@ export default function CompetitorsPage(): React.ReactElement {
   }
 
   return (
-    <DashboardLayout title="Competitors">
+    <DashboardLayout>
       <div className="space-y-6">
         {/* Brand Header */}
         <div className="flex items-center justify-between">
@@ -89,6 +115,13 @@ export default function CompetitorsPage(): React.ReactElement {
             <span>Refresh</span>
           </button>
         </div>
+
+        {/* Competitor Analytics Processor */}
+        <CompetitorProcessor 
+          brandId={selectedBrand.id}
+          brandName={selectedBrand.companyName}
+          className="mb-6"
+        />
 
         {/* Error State */}
         {error && (
@@ -118,13 +151,13 @@ export default function CompetitorsPage(): React.ReactElement {
           </div>
         ) : competitors.length > 0 ? (
           <>
-            {/* Competitors Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Real Competitor Analytics Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
                 <div className="text-center">
                   <Users className="h-8 w-8 text-[#000C60] mx-auto mb-2" />
                   <p className="text-2xl font-bold text-foreground">{competitors.length}</p>
-                  <p className="text-muted-foreground text-sm">Competitors Tracked</p>
+                  <p className="text-muted-foreground text-sm">Competitors Detected</p>
                 </div>
               </Card>
               
@@ -132,9 +165,9 @@ export default function CompetitorsPage(): React.ReactElement {
                 <div className="text-center">
                   <MessageSquare className="h-8 w-8 text-[#00B087] mx-auto mb-2" />
                   <p className="text-2xl font-bold text-foreground">
-                    {competitors.reduce((sum, comp) => sum + comp.mentions, 0).toLocaleString()}
+                    {competitors.reduce((sum, comp) => sum + comp.mentions, 0)}
                   </p>
-                  <p className="text-muted-foreground text-sm">Total Market Mentions</p>
+                  <p className="text-muted-foreground text-sm">Total Mentions</p>
                 </div>
               </Card>
               
@@ -142,19 +175,29 @@ export default function CompetitorsPage(): React.ReactElement {
                 <div className="text-center">
                   <Eye className="h-8 w-8 text-[#764F94] mx-auto mb-2" />
                   <p className="text-2xl font-bold text-foreground">
-                    {Math.round(competitors.reduce((sum, comp) => sum + comp.visibility, 0) / competitors.length)}%
+                    {competitors.length > 0 ? Math.round(competitors.reduce((sum, comp) => sum + comp.visibility, 0) / competitors.length) : 0}%
                   </p>
-                  <p className="text-muted-foreground text-sm">Avg Market Visibility</p>
+                  <p className="text-muted-foreground text-sm">Avg Visibility</p>
+                </div>
+              </Card>
+
+              <Card>
+                <div className="text-center">
+                  <TrendingUp className="h-8 w-8 text-[#E74C3C] mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-foreground">
+                    {competitors[0]?.queriesAnalyzed || 0}
+                  </p>
+                  <p className="text-muted-foreground text-sm">Queries Analyzed</p>
                 </div>
               </Card>
             </div>
 
-            {/* Competitors List */}
+            {/* Real Competitors List */}
             <Card>
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-foreground">Competitor Performance</h3>
+                <h3 className="text-lg font-semibold text-foreground">Competitor Analytics</h3>
                 <div className="text-sm text-muted-foreground">
-                  Last updated: {new Date().toLocaleDateString()}
+                  Based on real AI query responses
                 </div>
               </div>
               
@@ -165,82 +208,35 @@ export default function CompetitorsPage(): React.ReactElement {
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">
                           <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
-                          <WebLogo domain={competitor.domain} size={32} />
+                          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                            {competitor.name.charAt(0).toUpperCase()}
+                          </div>
                         </div>
                         <div>
                           <h4 className="font-semibold text-foreground">{competitor.name}</h4>
-                          <p className="text-sm text-muted-foreground">{competitor.domain}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {competitor.mentions} mention{competitor.mentions !== 1 ? 's' : ''} detected
+                          </p>
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-6">
                         {/* Mentions */}
                         <div className="text-center">
-                          <p className="text-sm font-medium text-foreground">{competitor.mentions.toLocaleString()}</p>
+                          <p className="text-sm font-medium text-foreground">{competitor.mentions}</p>
                           <p className="text-xs text-muted-foreground">Mentions</p>
-                          <div className="flex items-center justify-center mt-1">
-                            {competitor.trends.mentions > 0 ? (
-                              <TrendingUp className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <TrendingDown className="h-3 w-3 text-red-500" />
-                            )}
-                            <span className={`text-xs ml-1 ${
-                              competitor.trends.mentions > 0 ? 'text-green-500' : 'text-red-500'
-                            }`}>
-                              {competitor.trends.mentions > 0 ? '+' : ''}{competitor.trends.mentions}%
-                            </span>
-                          </div>
                         </div>
 
                         {/* Visibility */}
                         <div className="text-center">
                           <p className="text-sm font-medium text-foreground">{competitor.visibility}%</p>
                           <p className="text-xs text-muted-foreground">Visibility</p>
-                          <div className="flex items-center justify-center mt-1">
-                            {competitor.trends.visibility > 0 ? (
-                              <TrendingUp className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <TrendingDown className="h-3 w-3 text-red-500" />
-                            )}
-                            <span className={`text-xs ml-1 ${
-                              competitor.trends.visibility > 0 ? 'text-green-500' : 'text-red-500'
-                            }`}>
-                              {competitor.trends.visibility > 0 ? '+' : ''}{competitor.trends.visibility}%
-                            </span>
-                          </div>
                         </div>
 
-                        {/* Sentiment */}
+                        {/* Top Provider */}
                         <div className="text-center">
-                          <div className="flex items-center justify-center space-x-1">
-                            <Heart className="h-4 w-4 text-pink-500" />
-                            <p className="text-sm font-medium text-foreground">{competitor.sentimentScore}/10</p>
-                          </div>
-                          <p className="text-xs text-muted-foreground">Sentiment</p>
-                          <div className="flex items-center justify-center mt-1">
-                            {competitor.trends.sentiment > 0 ? (
-                              <TrendingUp className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <TrendingDown className="h-3 w-3 text-red-500" />
-                            )}
-                            <span className={`text-xs ml-1 ${
-                              competitor.trends.sentiment > 0 ? 'text-green-500' : 'text-red-500'
-                            }`}>
-                              {competitor.trends.sentiment > 0 ? '+' : ''}{competitor.trends.sentiment.toFixed(1)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Market Share */}
-                        <div className="text-center">
-                          <p className="text-sm font-medium text-foreground">{competitor.marketShare}%</p>
-                          <p className="text-xs text-muted-foreground">Market Share</p>
-                          <div className="w-16 bg-muted rounded-full h-1.5 mt-1">
-                            <div 
-                              className="bg-[#000C60] h-1.5 rounded-full" 
-                              style={{ width: `${competitor.marketShare}%` }}
-                            ></div>
-                          </div>
+                          <p className="text-sm font-medium text-foreground capitalize">{competitor.topProvider}</p>
+                          <p className="text-xs text-muted-foreground">Top Provider</p>
                         </div>
                       </div>
                     </div>
@@ -249,12 +245,39 @@ export default function CompetitorsPage(): React.ReactElement {
               </div>
             </Card>
 
-            {/* Market Analysis */}
+            {/* Share of Voice Summary */}
             <Card>
-              <h3 className="text-lg font-semibold text-foreground mb-4">Market Analysis</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">Share of Voice Summary</h3>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{brandShareOfVoice}%</div>
+                    <div className="text-sm text-muted-foreground">Your Brand (#{userBrandRank > 0 ? userBrandRank : 'N/A'})</div>
+                    <div className="text-xs text-muted-foreground mt-1">{realBrandMentions} mentions</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">{competitorShareOfVoice}%</div>
+                    <div className="text-sm text-muted-foreground">All Competitors</div>
+                    <div className="text-xs text-muted-foreground mt-1">{totalCompetitorMentions} mentions</div>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground">
+                      Total Market: <strong>{totalMarketMentions}</strong> mentions
+                      {brandAnalytics ? ' (Real Analytics)' : ' (Estimated)'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Real Analytics Summary */}
+            <Card>
+              <h3 className="text-lg font-semibold text-foreground mb-4">Analytics Summary</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="font-medium text-foreground mb-3">Top Performers</h4>
+                  <h4 className="font-medium text-foreground mb-3">Most Mentioned Competitors</h4>
                   <div className="space-y-2">
                     {competitors
                       .sort((a, b) => b.mentions - a.mentions)
@@ -272,10 +295,10 @@ export default function CompetitorsPage(): React.ReactElement {
                 </div>
                 
                 <div>
-                  <h4 className="font-medium text-foreground mb-3">Growth Leaders</h4>
+                  <h4 className="font-medium text-foreground mb-3">Highest Visibility</h4>
                   <div className="space-y-2">
                     {competitors
-                      .sort((a, b) => b.trends.mentions - a.trends.mentions)
+                      .sort((a, b) => b.visibility - a.visibility)
                       .slice(0, 3)
                       .map((competitor, index) => (
                         <div key={competitor.id} className="flex items-center justify-between p-2 bg-muted/20 rounded">
@@ -283,10 +306,7 @@ export default function CompetitorsPage(): React.ReactElement {
                             <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
                             <span className="text-sm font-medium text-foreground">{competitor.name}</span>
                           </div>
-                          <div className="flex items-center space-x-1">
-                            <TrendingUp className="h-3 w-3 text-green-500" />
-                            <span className="text-sm text-green-500">+{competitor.trends.mentions}%</span>
-                          </div>
+                          <span className="text-sm text-muted-foreground">{competitor.visibility}% visibility</span>
                         </div>
                       ))}
                   </div>
@@ -297,11 +317,28 @@ export default function CompetitorsPage(): React.ReactElement {
         ) : (
           <Card>
             <div className="text-center py-12">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No Competitors Found</h3>
-              <p className="text-muted-foreground">
-                No competitor data available for {selectedBrand.companyName} yet.
+              <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">No Competitor Analytics Yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Process queries for {selectedBrand.companyName} to generate real competitor analytics.
               </p>
+              <p className="text-sm text-muted-foreground mb-6">
+                Competitor analytics are generated from actual AI query responses, showing which competitors appear in AI recommendations.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link 
+                  href="/dashboard/queries" 
+                  className="bg-[#000C60] text-white px-4 py-2 rounded-lg hover:bg-[#000C60]/90 transition-colors"
+                >
+                  Process Queries
+                </Link>
+                <Link 
+                  href="/dashboard/add-brand/step-2" 
+                  className="bg-muted text-foreground px-4 py-2 rounded-lg hover:bg-accent transition-colors"
+                >
+                  Add Competitors
+                </Link>
+              </div>
             </div>
           </Card>
         )}

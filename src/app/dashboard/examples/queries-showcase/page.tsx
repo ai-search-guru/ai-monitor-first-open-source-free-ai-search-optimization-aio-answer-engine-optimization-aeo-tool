@@ -19,7 +19,7 @@ export default function QueriesShowcase(): React.ReactElement {
   };
 
   return (
-    <DashboardLayout title="Queries Components Showcase">
+    <DashboardLayout>
       <div className="space-y-8">
         {/* Header */}
         <div className="text-center">

@@ -17,12 +17,15 @@ export default function AddBrandStep2(): React.ReactElement {
   const [editingDescription, setEditingDescription] = useState(false);
   const [editingProducts, setEditingProducts] = useState(false);
   const [editingKeywords, setEditingKeywords] = useState(false);
+  const [editingCompetitors, setEditingCompetitors] = useState(false);
   
   // Temporary edit values
   const [tempDescription, setTempDescription] = useState('');
   const [tempProducts, setTempProducts] = useState<string[]>([]);
   const [tempKeywords, setTempKeywords] = useState<string[]>([]);
+  const [tempCompetitors, setTempCompetitors] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState('');
+  const [newCompetitor, setNewCompetitor] = useState('');
   
   const { queryState, executeQuery, clearQuery } = useAIQuery();
 
@@ -55,18 +58,28 @@ export default function AddBrandStep2(): React.ReactElement {
     if (!companyData || !domain) return;
 
     const prompts = {
-      competitive: `Analyze the competitive landscape for ${companyData.companyName} (${domain}). 
+      competitive: `Analyze the comprehensive competitive landscape for ${companyData.companyName} (${domain}). 
       Company description: ${companyData.shortDescription}
       Products/Services: ${companyData.productsAndServices?.join(', ')}
+      Known competitors: ${companyData.competitors?.join(', ') || 'None listed'}
+      
+      Instructions:
+      - Identify companies that offer the SAME or SIMILAR products/services as listed above
+      - Include both direct competitors (same target market) and indirect competitors (alternative solutions)
+      - Consider companies that solve the same customer problems with different approaches
+      - Look for businesses targeting the same customer segments or industries
       
       Provide:
-      1. Top 5 direct competitors with brief descriptions
-      2. Competitive advantages and weaknesses
-      3. Market positioning analysis
-      4. Differentiation opportunities
-      5. Market share insights (if available)
+      1. DIRECT COMPETITORS: Companies offering identical/very similar products/services
+      2. INDIRECT COMPETITORS: Companies offering alternative solutions to the same customer problems
+      3. SERVICE-BASED COMPETITORS: If this company offers services, include other service providers in the same domain
+      4. PRODUCT-BASED COMPETITORS: If this company offers products, include companies with competing products
+      5. Competitive advantages and weaknesses analysis
+      6. Market positioning comparison
+      7. Differentiation opportunities
+      8. Market share insights (if available)
       
-      Format as JSON with sections: competitors, advantages, weaknesses, positioning, opportunities`,
+      Format as JSON with sections: directCompetitors, indirectCompetitors, serviceCompetitors, productCompetitors, advantages, weaknesses, positioning, opportunities`,
       
       marketing: `Create comprehensive marketing strategies for ${companyData.companyName} (${domain}).
       Company description: ${companyData.shortDescription}
@@ -204,6 +217,37 @@ export default function AddBrandStep2(): React.ReactElement {
 
   const removeKeyword = (index: number) => {
     setTempKeywords(tempKeywords.filter((_, i) => i !== index));
+  };
+
+  const startEditingCompetitors = () => {
+    setTempCompetitors([...(companyData?.competitors || [])]);
+    setEditingCompetitors(true);
+  };
+
+  const saveCompetitors = () => {
+    if (companyData) {
+      const updatedData = { ...companyData, competitors: tempCompetitors };
+      setCompanyData(updatedData);
+      sessionStorage.setItem('companyInfo', JSON.stringify(updatedData));
+    }
+    setEditingCompetitors(false);
+  };
+
+  const cancelEditingCompetitors = () => {
+    setEditingCompetitors(false);
+    setTempCompetitors([]);
+    setNewCompetitor('');
+  };
+
+  const addCompetitor = () => {
+    if (newCompetitor.trim() && !tempCompetitors.includes(newCompetitor.trim()) && tempCompetitors.length < 10) {
+      setTempCompetitors([...tempCompetitors, newCompetitor.trim()]);
+      setNewCompetitor('');
+    }
+  };
+
+  const removeCompetitor = (index: number) => {
+    setTempCompetitors(tempCompetitors.filter((_, i) => i !== index));
   };
 
   const renderAIInsights = () => {
@@ -533,7 +577,7 @@ export default function AddBrandStep2(): React.ReactElement {
                 {/* Company Information Content */}
                   <div className="space-y-6">
                     {/* Key Information Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                       {/* Products & Services */}
                       <div className="bg-card border border-border rounded-xl p-6">
                         <div className="flex items-center justify-between mb-4">
@@ -623,7 +667,7 @@ export default function AddBrandStep2(): React.ReactElement {
                             <div className="p-2 bg-[#764F94] rounded-lg">
                               <Tag className="h-5 w-5 text-white" />
                             </div>
-                            <h4 className="text-foreground font-semibold">Keywords</h4>
+                            <h4 className="text-foreground font-semibold">Topics & Semantic Clusters</h4>
                           </div>
                           <button
                             onClick={startEditingKeywords}
@@ -707,6 +751,96 @@ export default function AddBrandStep2(): React.ReactElement {
                         )}
                       </div>
 
+                      {/* Competitors */}
+                      <div className="bg-card border border-border rounded-xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-[#E74C3C] rounded-lg">
+                              <Target className="h-5 w-5 text-white" />
+                            </div>
+                            <h4 className="text-foreground font-semibold">Competitors</h4>
+                          </div>
+                          <button
+                            onClick={startEditingCompetitors}
+                            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        
+                        {editingCompetitors ? (
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {tempCompetitors.map((competitor, index) => (
+                                <span
+                                  key={index}
+                                  className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 border border-red-200 text-red-800 text-sm rounded-lg dark:bg-red-900/20 dark:border-red-800 dark:text-red-200"
+                                >
+                                  {competitor}
+                                  <button
+                                    onClick={() => removeCompetitor(index)}
+                                    className="text-red-600 hover:text-red-800 transition-colors dark:text-red-400 dark:hover:text-red-200"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="text"
+                                value={newCompetitor}
+                                onChange={(e) => setNewCompetitor(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && addCompetitor()}
+                                disabled={tempCompetitors.length >= 10}
+                                className="flex-1 p-2 border border-border rounded-lg bg-background text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                placeholder={tempCompetitors.length >= 10 ? "Maximum 10 competitors reached" : "Add competitor..."}
+                              />
+                              <button
+                                onClick={addCompetitor}
+                                disabled={tempCompetitors.length >= 10 || !newCompetitor.trim()}
+                                className="p-2 bg-[#E74C3C] text-white rounded-lg hover:bg-[#E74C3C]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {tempCompetitors.length}/10 competitors added
+                            </div>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={saveCompetitors}
+                                className="px-3 py-1 bg-[#00B087] text-white text-sm rounded-lg hover:bg-[#00B087]/90 transition-colors"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={cancelEditingCompetitors}
+                                className="px-3 py-1 bg-muted text-muted-foreground text-sm rounded-lg hover:bg-accent transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {(companyData.competitors && companyData.competitors.length > 0) ? (
+                              companyData.competitors.map((competitor: string, index: number) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-red-50 border border-red-200 text-red-800 text-sm rounded-lg dark:bg-red-900/20 dark:border-red-800 dark:text-red-200"
+                                >
+                                  {competitor}
+                                </span>
+                              ))
+                            ) : (
+                              <div className="text-sm text-muted-foreground">
+                                No competitors listed
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
                     </div>
 

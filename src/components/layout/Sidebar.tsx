@@ -131,7 +131,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
   const ThemeIcon = getThemeIcon();
 
   // Filter out nav items to hide
-  const hiddenNavNames = ['Analytics', 'Competitors', 'Billing', 'Settings'];
+  const hiddenNavNames = ['Analytics', 'Billing', 'Settings'];
   const visibleNavigationItems = navigationItems.filter(item => !hiddenNavNames.includes(item.name));
 
   return (

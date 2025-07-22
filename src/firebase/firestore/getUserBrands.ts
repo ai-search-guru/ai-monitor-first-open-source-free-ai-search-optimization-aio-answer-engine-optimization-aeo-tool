@@ -1,5 +1,6 @@
 import firebase_app from "../config";
 import { getFirestore, collection, query, where, getDocs, doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { storeDocumentWithLargeData, retrieveDocumentWithLargeData, exceedsFirestoreLimit } from '../storage/cloudStorage';
 
 // Get the Firestore instance
 const db = getFirestore(firebase_app);
@@ -93,7 +94,7 @@ export interface QueryProcessingResult {
 }
 
 // Function to get user brands from v8userbrands collection
-export async function getUserBrands(userId: string) {
+export async function getUserBrands(userId: string, includeQueryResults: boolean = false) {
   let result: UserBrand[] = [];
   let error = null;
 
@@ -106,10 +107,36 @@ export async function getUserBrands(userId: string) {
     const querySnapshot = await getDocs(q);
     
     // Convert the documents to UserBrand objects
-    result = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as UserBrand));
+    result = await Promise.all(
+      querySnapshot.docs.map(async (docSnap) => {
+        const brandData = { id: docSnap.id, ...docSnap.data() } as UserBrand;
+        
+        // If the document has storage references and we want query results, retrieve them
+        if (includeQueryResults && (brandData as any).storageReferences) {
+          console.log(`📥 Brand ${brandData.id} has Cloud Storage references, retrieving full data...`);
+          
+          try {
+            const { document: fullBrandData } = await retrieveDocumentWithLargeData(
+              'v8userbrands', 
+              docSnap.id, 
+              ['queryProcessingResults']
+            );
+            
+            if (fullBrandData?.queryProcessingResults) {
+              brandData.queryProcessingResults = fullBrandData.queryProcessingResults;
+              console.log(`✅ Retrieved ${fullBrandData.queryProcessingResults.length} query results from Cloud Storage for brand ${brandData.id}`);
+            }
+          } catch (retrievalError) {
+            console.warn(`⚠️ Failed to retrieve Cloud Storage data for brand ${brandData.id}:`, retrievalError);
+            // Continue with the basic brand data
+          }
+        }
+        
+        return brandData;
+      })
+    );
+
+    console.log(`✅ Retrieved ${result.length} brands for user ${userId}${includeQueryResults ? ' (with query results)' : ''}`);
 
   } catch (e) {
     console.error('Error fetching user brands:', e);
@@ -127,88 +154,241 @@ export async function updateBrandWithQueryResults(
   let error = null;
 
   try {
-    const brandRef = doc(db, 'v8userbrands', brandId);
-    
-    // First, fetch the current brand data to get existing results
-    const brandDoc = await getDoc(brandRef);
-    
-    let existingResults: QueryProcessingResult[] = [];
-    if (brandDoc.exists()) {
-      const brandData = brandDoc.data() as UserBrand;
-      existingResults = brandData.queryProcessingResults || [];
-    }
-
-    // Check if we're updating an existing session or creating a new one
-    const currentSessionId = queryResults[0]?.processingSessionId;
-    
-    if (currentSessionId) {
-      // Remove any existing results from the same processing session (for incremental updates)
-      existingResults = existingResults.filter(
-        result => result.processingSessionId !== currentSessionId
-      );
-      
-      console.log(`🔄 Processing session ${currentSessionId}: Removed existing session data, now adding ${queryResults.length} new results`);
-    }
-    
-    // Append the new query results
-    const allResults = [...existingResults, ...queryResults];
-    
-    // Limit the number of stored results to prevent document size issues
-    // Keep only the most recent 50 results (approximately 500KB max)
-    const MAX_STORED_RESULTS = 50;
-    const limitedResults = allResults
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, MAX_STORED_RESULTS);
-    
-    // Truncate extremely long responses to prevent size issues (increased limit)
-    const truncatedResults = limitedResults.map(result => ({
-      ...result,
-      results: {
-        ...result.results,
-        ...(result.results.chatgpt && {
-          chatgpt: {
-            ...result.results.chatgpt,
-            response: result.results.chatgpt.response.length > 10000 
-              ? result.results.chatgpt.response.substring(0, 10000) + '...[truncated]'
-              : result.results.chatgpt.response
-          }
-        }),
-        ...(result.results.gemini && {
-          gemini: {
-            ...result.results.gemini,
-            response: result.results.gemini.response.length > 10000 
-              ? result.results.gemini.response.substring(0, 10000) + '...[truncated]'
-              : result.results.gemini.response
-          }
-        }),
-        ...(result.results.perplexity && {
-          perplexity: {
-            ...result.results.perplexity,
-            response: result.results.perplexity.response.length > 10000 
-              ? result.results.perplexity.response.substring(0, 10000) + '...[truncated]'
-              : result.results.perplexity.response
-          }
-        })
-      }
-    }));
-    
-    // Update the brand document with limited results
-    await setDoc(brandRef, {
-      queryProcessingResults: truncatedResults,
+    // First, check the size of the data we're trying to store
+    const dataToStore = {
+      queryProcessingResults: queryResults,
       lastProcessedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    }, { merge: true });
-
-    console.log(`✅ Brand updated with query results:`, {
-      brandId,
-      newSessionResults: queryResults.length,
-      totalResults: allResults.length,
-      processingSessionId: currentSessionId
+    };
+    
+    const serializedSize = JSON.stringify(queryResults).length;
+    console.log(`📊 Checking data size for brand ${brandId}:`, {
+      queryResults: queryResults.length,
+      estimatedSize: `${(serializedSize / 1024).toFixed(2)} KB`,
+      sizeInBytes: serializedSize,
+      firestoreLimit: '1048576 bytes (1MB)',
+      willExceedLimit: exceedsFirestoreLimit(dataToStore)
     });
+    
+    // If the data is too large, use Cloud Storage
+    const shouldUseCloudStorage = exceedsFirestoreLimit(dataToStore) || serializedSize > 1000000; // Force if >1MB
+    
+    if (shouldUseCloudStorage) {
+      console.log(`📦 Data exceeds Firestore limits, using Cloud Storage for brand ${brandId}`);
+      
+      // Get existing brand data first
+      const { document: existingBrand } = await retrieveDocumentWithLargeData('v8userbrands', brandId, ['queryProcessingResults']);
+      let existingResults: QueryProcessingResult[] = [];
+      
+      if (existingBrand?.queryProcessingResults) {
+        existingResults = existingBrand.queryProcessingResults;
+      }
+      
+      // Check if we're updating an existing session or creating a new one
+      const currentSessionId = queryResults[0]?.processingSessionId;
+      
+      if (currentSessionId) {
+        // Remove any existing results from the same processing session (for incremental updates)
+        existingResults = existingResults.filter(
+          result => result.processingSessionId !== currentSessionId
+        );
+        
+        console.log(`🔄 Processing session ${currentSessionId}: Removed existing session data, now adding ${queryResults.length} new results`);
+      }
+      
+      // Append the new query results
+      const allResults = [...existingResults, ...queryResults];
+      
+      // Limit the number of stored results to prevent excessive storage costs
+      const MAX_STORED_RESULTS = 100; // Increased since we're using Cloud Storage
+      const limitedResults = allResults
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, MAX_STORED_RESULTS);
+      
+      // Store using Cloud Storage service
+      const { success, error: storageError } = await storeDocumentWithLargeData(
+        'v8userbrands',
+        brandId,
+        {
+          queryProcessingResults: limitedResults,
+          lastProcessedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        },
+        ['queryProcessingResults'], // Specify which fields might be large
+        true // Auto-detect large fields
+      );
+      
+      if (!success && storageError) {
+        throw storageError;
+      }
+      
+      console.log(`✅ Brand updated with query results using Cloud Storage:`, {
+        brandId,
+        newSessionResults: queryResults.length,
+        totalResults: allResults.length,
+        storedInCloudStorage: true,
+        processingSessionId: currentSessionId
+      });
+      
+    } else {
+      // Use traditional Firestore storage for smaller data
+      console.log(`💾 Data fits in Firestore, using traditional storage for brand ${brandId}`);
+      
+      const brandRef = doc(db, 'v8userbrands', brandId);
+      
+      // First, fetch the current brand data to get existing results
+      const brandDoc = await getDoc(brandRef);
+      
+      let existingResults: QueryProcessingResult[] = [];
+      if (brandDoc.exists()) {
+        const brandData = brandDoc.data() as UserBrand;
+        existingResults = brandData.queryProcessingResults || [];
+      }
+
+      // Check if we're updating an existing session or creating a new one
+      const currentSessionId = queryResults[0]?.processingSessionId;
+      
+      if (currentSessionId) {
+        // Remove any existing results from the same processing session (for incremental updates)
+        existingResults = existingResults.filter(
+          result => result.processingSessionId !== currentSessionId
+        );
+        
+        console.log(`🔄 Processing session ${currentSessionId}: Removed existing session data, now adding ${queryResults.length} new results`);
+      }
+      
+      // Append the new query results
+      const allResults = [...existingResults, ...queryResults];
+      
+      // Limit the number of stored results to prevent document size issues
+      const MAX_STORED_RESULTS = 50;
+      const limitedResults = allResults
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, MAX_STORED_RESULTS);
+      
+      // Extremely aggressive truncation for Firestore storage to prevent size issues
+      const truncatedResults = limitedResults.map(result => ({
+        ...result,
+        results: {
+          ...result.results,
+          ...(result.results?.chatgpt && {
+            chatgpt: {
+              ...result.results.chatgpt,
+              response: (result.results.chatgpt.response && result.results.chatgpt.response.length > 3000)
+                ? result.results.chatgpt.response.substring(0, 3000) + '...[truncated for size]'
+                : (result.results.chatgpt.response || '')
+            }
+          }),
+          ...(result.results?.gemini && {
+            gemini: {
+              ...result.results.gemini,
+              response: (result.results.gemini.response && result.results.gemini.response.length > 3000)
+                ? result.results.gemini.response.substring(0, 3000) + '...[truncated for size]'
+                : (result.results.gemini.response || '')
+            }
+          }),
+          ...(result.results?.perplexity && {
+            perplexity: {
+              ...result.results.perplexity,
+              response: (result.results.perplexity.response && result.results.perplexity.response.length > 3000)
+                ? result.results.perplexity.response.substring(0, 3000) + '...[truncated for size]'
+                : (result.results.perplexity.response || '')
+            }
+          })
+        }
+      }));
+      
+      // Double-check the size after truncation
+      const truncatedDataSize = JSON.stringify({
+        queryProcessingResults: truncatedResults,
+        lastProcessedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }).length;
+      
+      console.log(`📏 Truncated data size: ${(truncatedDataSize / 1024).toFixed(2)} KB`);
+      
+      // If still too large, reduce to only the most essential data
+      if (truncatedDataSize > 800000) { // 800KB safety limit
+        console.log('⚠️ Data still too large after truncation, using minimal data approach');
+        const minimalResults = truncatedResults.slice(0, 20).map(result => ({
+          date: result.date,
+          processingSessionId: result.processingSessionId,
+          query: result.query ? (result.query.substring(0, 100) + (result.query.length > 100 ? '...' : '')) : '',
+          keyword: result.keyword,
+          category: result.category,
+          results: {
+            ...(result.results?.chatgpt && { chatgpt: { timestamp: result.results.chatgpt.timestamp, hasContent: !!result.results.chatgpt.response } }),
+            ...(result.results?.gemini && { gemini: { timestamp: result.results.gemini.timestamp, hasContent: !!result.results.gemini.response } }),
+            ...(result.results?.perplexity && { perplexity: { timestamp: result.results.perplexity.timestamp, hasContent: !!result.results.perplexity.response } })
+          }
+        }));
+        
+        await setDoc(brandRef, {
+          queryProcessingResults: minimalResults,
+          lastProcessedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          dataNote: 'Full query results stored in Cloud Storage due to size constraints'
+        }, { merge: true });
+        
+      } else {
+        // Use truncated results if they fit
+        await setDoc(brandRef, {
+          queryProcessingResults: truncatedResults,
+          lastProcessedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+              }
+
+      console.log(`✅ Brand updated with query results using Firestore:`, {
+        brandId,
+        newSessionResults: queryResults.length,
+        totalResults: allResults.length,
+        storedInFirestore: true,
+        processingSessionId: currentSessionId
+      });
+    }
 
   } catch (e) {
     console.error('Error updating brand with query results:', e);
     error = e;
+    
+    // If the Cloud Storage approach fails, try to save a minimal version in Firestore
+    if (e instanceof Error && e.message.includes('size') && e.message.includes('exceeds')) {
+      console.log('🔧 Attempting fallback with minimal data...');
+      try {
+        const brandRef = doc(db, 'v8userbrands', brandId);
+        
+        // Save only essential data without full responses
+        const minimalResults = queryResults.slice(0, 10).map(result => ({
+          date: result.date,
+          processingSessionId: result.processingSessionId,
+          processingSessionTimestamp: result.processingSessionTimestamp,
+          query: result.query || '',
+          keyword: result.keyword || '',
+          category: result.category || '',
+          results: {
+            ...(result.results?.chatgpt && { chatgpt: { timestamp: result.results.chatgpt.timestamp, error: result.results.chatgpt.error } }),
+            ...(result.results?.gemini && { gemini: { timestamp: result.results.gemini.timestamp, error: result.results.gemini.error } }),
+            ...(result.results?.perplexity && { perplexity: { timestamp: result.results.perplexity.timestamp, error: result.results.perplexity.error } })
+          }
+        }));
+        
+        await setDoc(brandRef, {
+          queryProcessingResults: minimalResults,
+          lastProcessedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          largeDataStorageError: true,
+          largeDataNote: 'Full query results stored in Cloud Storage due to size constraints'
+        }, { merge: true });
+        
+        console.log('✅ Fallback save completed with minimal data');
+        error = null; // Clear the error since we successfully saved minimal data
+        
+      } catch (fallbackError) {
+        console.error('❌ Fallback save also failed:', fallbackError);
+        error = fallbackError;
+      }
+    }
   }
 
   return { error };

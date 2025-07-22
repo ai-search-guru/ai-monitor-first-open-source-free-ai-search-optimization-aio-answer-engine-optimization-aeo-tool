@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthContext } from '@/context/AuthContext';
 import { getBrandInfo } from '@/firebase/firestore/brandDataService';
+import { retrieveDocumentWithLargeData } from '@/firebase/storage/cloudStorage';
 import type { UserBrand } from '@/firebase/firestore/getUserBrands';
 
 // Interface for processed query results (the format stored in brand documents)
@@ -105,12 +106,32 @@ export function useBrandQueries(options: UseBrandQueriesOptions = {}): UseBrandQ
       console.log('🔍 Fetching brand queries for brandId:', brandId);
       
       // Get brand info which contains queryProcessingResults
-      const brand = await getBrandInfo(brandId);
+      let brand = await getBrandInfo(brandId);
       
       if (!brand) {
         setError('Brand not found');
         setQueries([]);
         return;
+      }
+
+      // If the brand document has storage references, retrieve full data from Cloud Storage
+      if ((brand as any).storageReferences?.queryProcessingResults) {
+        console.log('📥 Brand has Cloud Storage references, retrieving full query results...');
+        try {
+          const { document: fullBrandData } = await retrieveDocumentWithLargeData(
+            'v8userbrands', 
+            brandId, 
+            ['queryProcessingResults']
+          );
+          
+          if (fullBrandData?.queryProcessingResults) {
+            brand.queryProcessingResults = fullBrandData.queryProcessingResults;
+            console.log(`✅ Retrieved ${fullBrandData.queryProcessingResults.length} query results from Cloud Storage`);
+          }
+        } catch (storageError) {
+          console.warn('⚠️ Failed to retrieve query results from Cloud Storage:', storageError);
+          // Continue with truncated data from Firestore
+        }
       }
 
       const queryResults = brand.queryProcessingResults || [];

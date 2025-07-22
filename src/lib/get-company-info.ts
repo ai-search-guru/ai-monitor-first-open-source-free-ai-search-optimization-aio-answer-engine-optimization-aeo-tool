@@ -22,6 +22,7 @@ export const CompanyInfoSchema = z.object({
   shortDescription: z.string().describe('A concise 2-3 sentence summary of what the company does'),
   productsAndServices: z.array(z.string()).describe('List of main products, services, features, or offerings'),
   keywords: z.array(z.string()).describe('4-5 relevant keywords or phrases representing core business'),
+  competitors: z.array(z.string()).describe('3-5 main competitor companies or brands in the same industry'),
   website: z.string().describe('Company website URL'),
 });
 export type CompanyInfo = z.infer<typeof CompanyInfoSchema>;
@@ -60,6 +61,7 @@ export async function getCompanyInfo(input: CompanyInfoInput): Promise<CompanyIn
       shortDescription: `A company operating at ${domain}. Unable to fetch detailed information.`,
       productsAndServices: [],
       keywords: [],
+      competitors: [],
       website: `https://www.${domain}`,
     };
   }
@@ -94,12 +96,15 @@ You MUST return a valid JSON object with all of the following fields. If you can
   "companyName": "Identify the official brand or company name",
   "shortDescription": "A concise 2 to 3 sentence summary describing what the company does",
   "productsAndServices": ["A", "bullet-point", "list", "of", "main", "products", "services", "features", "or", "offerings"],
-  "keywords": ["4", "to", "5", "relevant", "keywords", "or", "phrases"]
+  "keywords": ["4", "to", "5", "relevant", "keywords", "or", "phrases"],
+  "competitors": ["3", "to", "5", "main", "competitor", "companies", "or", "brands"]
 }
 
 Instructions:
 - Prioritize clarity, conciseness, and factual accuracy.
 - Use top search results and the company's own site to gather data.
+- For competitors: Identify companies that offer the SAME or SIMILAR products/services as listed. Include both direct competitors (same target market) and companies that provide alternative solutions to the same customer problems.
+- Consider businesses that target the same customer segments, industries, or solve similar pain points.
 - Do NOT infer or speculate beyond what is clearly stated in the source content.
 - Return ONLY the JSON object, no additional text or formatting.
 - Ensure the JSON is valid and properly formatted.`;
@@ -176,6 +181,7 @@ function parseAIResponse(response: string): Omit<CompanyInfo, 'website'> {
       shortDescription: parsed.shortDescription || '',
       productsAndServices: Array.isArray(parsed.productsAndServices) ? parsed.productsAndServices : [],
       keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
+      competitors: Array.isArray(parsed.competitors) ? parsed.competitors : [],
     };
     
     return result;
@@ -189,6 +195,7 @@ function parseAIResponse(response: string): Omit<CompanyInfo, 'website'> {
       shortDescription: '',
       productsAndServices: [],
       keywords: [],
+      competitors: [],
     };
   }
 } 

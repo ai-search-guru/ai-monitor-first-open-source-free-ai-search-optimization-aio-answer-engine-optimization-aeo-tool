@@ -1,5 +1,5 @@
 {
-  "name": "nextjs-13-firebase-starter",
+  "name": "ai-monitor-free-aio-aeo-geo-tool",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -27,6 +27,7 @@
     "eslint-config-next": "15.3.3",
     "firebase": "^11.8.1",
     "firebase-admin": "^13.4.0",
+    "fuzzysort": "^3.1.0",
     "jsdom": "^26.1.0",
     "lucide-react": "^0.525.0",
     "next": "15.3.3",

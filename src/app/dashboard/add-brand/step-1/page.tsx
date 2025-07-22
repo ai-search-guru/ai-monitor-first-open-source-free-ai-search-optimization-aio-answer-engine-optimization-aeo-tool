@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Globe, Search, Sparkles, ArrowRight, AlertCircle, CheckCircle, Building2, Users, Tag, TrendingUp, ExternalLink, RefreshCw } from 'lucide-react';
+import { Globe, Search, Sparkles, ArrowRight, AlertCircle, CheckCircle, Building2, Users, Tag, TrendingUp, ExternalLink, RefreshCw, Target } from 'lucide-react';
 import { useCompanyInfo } from '@/hooks/useCompanyInfo';
 
 export default function AddBrandStep1(): React.ReactElement {
@@ -292,66 +292,6 @@ export default function AddBrandStep1(): React.ReactElement {
               )}
             </button>
 
-            {/* What we'll research section */}
-            <div className="mt-12">
-              <h3 className="text-foreground text-lg font-semibold mb-6 text-center">
-                What we&apos;ll research:
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Company Name */}
-                <div className="bg-accent/50 border border-border rounded-xl p-6">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="p-2 bg-[#000C60] rounded-lg">
-                      <Building2 className="h-5 w-5 text-white" />
-                    </div>
-                    <h4 className="text-foreground font-semibold">Company Name</h4>
-                  </div>
-                  <p className="text-muted-foreground text-sm">
-                    Official brand name and company identity
-                  </p>
-                </div>
-
-                {/* Description */}
-                <div className="bg-accent/50 border border-border rounded-xl p-6">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="p-2 bg-[#764F94] rounded-lg">
-                      <Sparkles className="h-5 w-5 text-white" />
-                    </div>
-                    <h4 className="text-foreground font-semibold">Description</h4>
-                  </div>
-                  <p className="text-muted-foreground text-sm">
-                    Concise summary of what the company does
-                  </p>
-                </div>
-
-                {/* Products & Services */}
-                <div className="bg-accent/50 border border-border rounded-xl p-6">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="p-2 bg-[#00B087] rounded-lg">
-                      <Tag className="h-5 w-5 text-white" />
-                    </div>
-                    <h4 className="text-foreground font-semibold">Products & Services</h4>
-                  </div>
-                  <p className="text-muted-foreground text-sm">
-                    Main products, services, and business offerings
-                  </p>
-                </div>
-
-                {/* Keywords */}
-                <div className="bg-accent/50 border border-border rounded-xl p-6">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="p-2 bg-[#FF6B35] rounded-lg">
-                      <Search className="h-5 w-5 text-white" />
-                    </div>
-                    <h4 className="text-foreground font-semibold">Keywords</h4>
-                  </div>
-                  <p className="text-muted-foreground text-sm">
-                    Relevant keywords representing core business
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

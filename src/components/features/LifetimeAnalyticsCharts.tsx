@@ -3,21 +3,23 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useBrandQueries } from '@/hooks/useBrandQueries';
 import type { LifetimeBrandAnalytics } from '@/firebase/firestore/brandAnalytics';
 import { analyzeBrandMentions } from './BrandMentionCounter';
+import { useBrandContext } from '@/context/BrandContext';
 
 interface LifetimeAnalyticsChartsProps {
   lifetimeAnalytics: LifetimeBrandAnalytics;
   brandId: string;
 }
 
-const COLORS = ['#00B087', '#000C60', '#764F94'];
+const COLORS = ['#000C60', '#764F94', '#E5E7EB'];
 
 const providerColors = {
-  chatgpt: '#00B087',
+  chatgpt: '#000C60',
   google: '#000C60',
   perplexity: '#764F94',
 };
 
 export default function LifetimeAnalyticsCharts({ lifetimeAnalytics, brandId }: LifetimeAnalyticsChartsProps) {
+  const { selectedBrand } = useBrandContext();
   const { queries, loading: queriesLoading } = useBrandQueries({ brandId });
 
   // Log the first query result for debugging
@@ -68,7 +70,7 @@ export default function LifetimeAnalyticsCharts({ lifetimeAnalytics, brandId }: 
                   : [],
             }
           : undefined,
-      });
+      }, selectedBrand?.competitors || []);
       if (!byDay[day]) byDay[day] = { date: day, mentions: 0, citations: 0 };
       byDay[day].mentions += analysis.totals.totalBrandMentions;
       byDay[day].citations += analysis.totals.totalCitations;
@@ -112,7 +114,7 @@ export default function LifetimeAnalyticsCharts({ lifetimeAnalytics, brandId }: 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
       {/* Trend Line Chart */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <h3 className="text-lg font-semibold mb-4">Mentions & Citations Over Time</h3>
+        <h3 className="text-lg font-semibold mb-4">Mentions Over Time</h3>
         {queriesLoading ? (
           <div className="text-center text-gray-500">Loading trend data...</div>
         ) : trendData.length === 0 ? (
@@ -125,8 +127,7 @@ export default function LifetimeAnalyticsCharts({ lifetimeAnalytics, brandId }: 
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="mentions" stroke="#00B087" name="Mentions" strokeWidth={2} />
-              <Line type="monotone" dataKey="citations" stroke="#764F94" name="Citations" strokeWidth={2} />
+              <Line type="monotone" dataKey="mentions" stroke="#000C60" name="Mentions" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -154,14 +155,14 @@ export default function LifetimeAnalyticsCharts({ lifetimeAnalytics, brandId }: 
               label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
             >
               {donutData.map((entry, idx) => (
-                <Cell key={`cell-${idx}`} fill={idx === 0 ? '#00B087' : '#E5E7EB'} />
+                <Cell key={`cell-${idx}`} fill={idx === 0 ? '#000C60' : '#E5E7EB'} />
               ))}
             </Pie>
             <Tooltip />
           </PieChart>
         </ResponsiveContainer>
         <div className="mt-4 text-center">
-          <span className="text-2xl font-bold text-[#00B087]">{donutData[0].value}%</span>
+          <span className="text-2xl font-bold text-[#000C60]">{donutData[0].value}%</span>
           <span className="ml-2 text-gray-600">Visible</span>
         </div>
       </div>
@@ -176,7 +177,7 @@ export default function LifetimeAnalyticsCharts({ lifetimeAnalytics, brandId }: 
             <YAxis />
             <Tooltip />
             <Legend />
-            <Bar dataKey="mentions" fill="#00B087" name="Mentions" />
+            <Bar dataKey="mentions" fill="#000C60" name="Mentions" />
             <Bar dataKey="citations" fill="#764F94" name="Citations" />
           </BarChart>
         </ResponsiveContainer>

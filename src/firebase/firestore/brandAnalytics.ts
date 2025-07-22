@@ -6,6 +6,7 @@ import { extractGoogleAIOverviewCitations } from '@/components/features/GoogleAI
 import { extractPerplexityCitations } from '@/components/features/PerplexityResponseRenderer';
 import { getQueriesByBrand } from './userQueries';
 import { getBrandInfo } from './brandDataService';
+import { retrieveDocumentWithLargeData } from '../storage/cloudStorage';
 
 // Get the Firestore instance
 const db = getFirestore(firebase_app);
@@ -388,10 +389,31 @@ export async function calculateLifetimeBrandAnalytics(
     console.log('🔄 Calculating lifetime analytics for brand:', brandId);
     
     // Get brand information
-    const brand = await getBrandInfo(brandId);
+    let brand = await getBrandInfo(brandId);
     if (!brand) {
       return { error: 'Brand not found' };
     }
+    
+    // If the brand document has storage references, retrieve full data from Cloud Storage
+    if ((brand as any).storageReferences?.queryProcessingResults) {
+      console.log('📥 Brand has Cloud Storage references, retrieving full query results for analytics...');
+      try {
+        const { document: fullBrandData } = await retrieveDocumentWithLargeData(
+          'v8userbrands', 
+          brandId, 
+          ['queryProcessingResults']
+        );
+        
+        if (fullBrandData?.queryProcessingResults) {
+          brand.queryProcessingResults = fullBrandData.queryProcessingResults;
+          console.log(`✅ Retrieved ${fullBrandData.queryProcessingResults.length} query results from Cloud Storage for analytics`);
+        }
+      } catch (storageError) {
+        console.warn('⚠️ Failed to retrieve query results from Cloud Storage for analytics:', storageError);
+        // Continue with truncated data from Firestore
+      }
+    }
+    
     const brandName = brand.companyName;
     const brandDomain = brand.domain;
     const userId = brand.userId;

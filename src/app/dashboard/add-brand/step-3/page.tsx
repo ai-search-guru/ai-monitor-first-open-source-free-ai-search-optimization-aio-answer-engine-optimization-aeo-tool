@@ -39,6 +39,7 @@ export default function AddBrandStep3(): React.ReactElement {
   const [newQuery, setNewQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'Awareness' | 'Interest' | 'Consideration' | 'Purchase'>('Awareness');
   const [isCompleting, setIsCompleting] = useState(false);
+  const [selectedQueries, setSelectedQueries] = useState<Set<number>>(new Set());
   
   const { queryState, executeQuery, clearQuery } = useAIQuery();
 
@@ -206,6 +207,9 @@ Output format (return ONLY valid JSON array):
         console.log('✅ Found queries:', parsedQueries);
         setGeneratedQueries(parsedQueries);
         
+        // Auto-select all newly generated queries
+        setSelectedQueries(new Set(parsedQueries.map((_, index) => index)));
+        
         // Show success notification for auto-generated queries
         if (parsedQueries.length > 0) {
           showSuccess(
@@ -249,10 +253,12 @@ Output format (return ONLY valid JSON array):
   }, [queryState]);
 
   const handleComplete = async () => {
-    if (!companyData || generatedQueries.length === 0 || !user?.uid) {
+    if (!companyData || selectedQueries.size < 4 || !user?.uid) {
       console.error('Missing required data for completion:', {
         hasCompanyData: !!companyData,
-        hasQueries: generatedQueries.length > 0,
+        hasMinimumQueries: selectedQueries.size >= 4,
+        selectedCount: selectedQueries.size,
+        minimumRequired: 4,
         hasUser: !!user?.uid
       });
       return;
@@ -311,22 +317,25 @@ Output format (return ONLY valid JSON array):
         shortDescription: companyData.shortDescription,
         productsAndServices: companyData.productsAndServices || [],
         keywords: companyData.keywords || [],
+        competitors: companyData.competitors || [],
         
-        // Step 3 - Generated Queries
-        queries: generatedQueries.map(query => ({
-          keyword: query.keyword,
-          query: query.query,
-          category: query.category,
-          containsBrand: query.containsBrand,
-          selected: true
-        })),
+        // Step 3 - Generated Queries (only selected ones)
+        queries: generatedQueries
+          .filter((_, index) => selectedQueries.has(index))
+          .map(query => ({
+            keyword: query.keyword,
+            query: query.query,
+            category: query.category,
+            containsBrand: query.containsBrand,
+            selected: true
+          })),
         
-        // Query distribution by category
+        // Query distribution by category (only selected queries)
         queryDistribution: {
-          awareness: generatedQueries.filter(q => q.category === 'Awareness').length,
-          interest: generatedQueries.filter(q => q.category === 'Interest').length,
-          consideration: generatedQueries.filter(q => q.category === 'Consideration').length,
-          purchase: generatedQueries.filter(q => q.category === 'Purchase').length
+          awareness: generatedQueries.filter((q, i) => selectedQueries.has(i) && q.category === 'Awareness').length,
+          interest: generatedQueries.filter((q, i) => selectedQueries.has(i) && q.category === 'Interest').length,
+          consideration: generatedQueries.filter((q, i) => selectedQueries.has(i) && q.category === 'Consideration').length,
+          purchase: generatedQueries.filter((q, i) => selectedQueries.has(i) && q.category === 'Purchase').length
         },
         
         // AI Analysis metadata (if available)
@@ -344,7 +353,7 @@ Output format (return ONLY valid JSON array):
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         timestamp: Date.now(),
-        totalQueries: generatedQueries.length,
+        totalQueries: selectedQueries.size,
         setupComplete: true,
         currentStep: 3,
         
@@ -400,7 +409,7 @@ Output format (return ONLY valid JSON array):
       // Show comprehensive completion notification
       showSuccess(
         '🎉 Brand Setup Complete!',
-        `${companyData.companyName} has been added with ${generatedQueries.length} queries. Your first processing is ready to begin!`
+        `${companyData.companyName} has been added with ${selectedQueries.size} selected queries. Your first processing is ready to begin!`
       );
       
       // Show info about next steps
@@ -534,7 +543,11 @@ Output format (return ONLY valid JSON array):
         containsBrand: newQuery.toLowerCase().includes(companyData?.companyName?.toLowerCase() || '') ? 1 : 0
       };
       
+      const newIndex = generatedQueries.length;
       setGeneratedQueries(prev => [...prev, newQueryObject]);
+      
+      // Auto-select the newly added query
+      setSelectedQueries(prev => new Set([...prev, newIndex]));
       
       // Show success notification
       showSuccess(
@@ -562,6 +575,44 @@ Output format (return ONLY valid JSON array):
       handleCancelQuery();
     }
   };
+
+  // Checkbox selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedQueries(new Set(filteredQueries.map((_, index) => 
+        generatedQueries.findIndex(q => q === filteredQueries[index])
+      )));
+    } else {
+      // Deselect only the filtered queries
+      const filteredIndices = new Set(filteredQueries.map((_, index) => 
+        generatedQueries.findIndex(q => q === filteredQueries[index])
+      ));
+      setSelectedQueries(prev => new Set([...prev].filter(index => !filteredIndices.has(index))));
+    }
+  };
+
+  const handleSelectQuery = (queryIndex: number, checked: boolean) => {
+    const actualIndex = generatedQueries.findIndex(q => q === filteredQueries[queryIndex]);
+    setSelectedQueries(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(actualIndex);
+      } else {
+        newSet.delete(actualIndex);
+      }
+      return newSet;
+    });
+  };
+
+  const areAllFilteredSelected = filteredQueries.length > 0 && filteredQueries.every((_, index) => {
+    const actualIndex = generatedQueries.findIndex(q => q === filteredQueries[index]);
+    return selectedQueries.has(actualIndex);
+  });
+
+  const selectedFilteredCount = filteredQueries.filter((_, index) => {
+    const actualIndex = generatedQueries.findIndex(q => q === filteredQueries[index]);
+    return selectedQueries.has(actualIndex);
+  }).length;
 
   if (loading) {
     return (
@@ -850,19 +901,34 @@ Output format (return ONLY valid JSON array):
                      {/* Table Header */}
                      <div className="grid grid-cols-10 gap-4 p-4 bg-muted/30 border-b border-border text-sm font-medium text-muted-foreground">
                        <div className="col-span-1">
-                         <input type="checkbox" className="rounded" />
+                         <input 
+                           type="checkbox" 
+                           className="rounded" 
+                           checked={areAllFilteredSelected}
+                           onChange={(e) => handleSelectAll(e.target.checked)}
+                           title={areAllFilteredSelected ? "Deselect all" : "Select all"}
+                         />
                        </div>
-                       <div className="col-span-6">Prompts</div>
+                       <div className="col-span-6">Prompts ({selectedFilteredCount}/{filteredQueries.length} selected)</div>
                        <div className="col-span-2">Topic</div>
                        <div className="col-span-1">Intent</div>
                      </div>
                      
                      {/* Table Body */}
                      <div className="divide-y divide-border">
-                       {filteredQueries.map((query, index) => (
+                       {filteredQueries.map((query, index) => {
+                         const actualIndex = generatedQueries.findIndex(q => q === query);
+                         const isSelected = selectedQueries.has(actualIndex);
+                         
+                         return (
                          <div key={index} className="grid grid-cols-10 gap-4 p-4 hover:bg-muted/20 transition-colors">
                            <div className="col-span-1">
-                             <input type="checkbox" className="rounded" defaultChecked />
+                             <input 
+                               type="checkbox" 
+                               className="rounded" 
+                               checked={isSelected}
+                               onChange={(e) => handleSelectQuery(index, e.target.checked)}
+                             />
                            </div>
                            <div className="col-span-6">
                              <p className="text-foreground font-medium">
@@ -881,7 +947,8 @@ Output format (return ONLY valid JSON array):
                              </div>
                            </div>
                          </div>
-                       ))}
+                         );
+                       })}
                      </div>
                    </div>
                  </div>
@@ -930,7 +997,7 @@ Output format (return ONLY valid JSON array):
             
                           <button
                 onClick={handleComplete}
-                disabled={!queryState.result || queryState.loading || generatedQueries.length === 0 || isCompleting || credits < 100}
+                disabled={!queryState.result || queryState.loading || selectedQueries.size < 4 || isCompleting || credits < 100}
                 className="flex items-center space-x-2 bg-[#00B087] text-white px-6 py-3 rounded-xl hover:bg-[#00B087]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isCompleting ? (
@@ -943,9 +1010,14 @@ Output format (return ONLY valid JSON array):
                     <span>Insufficient Credits (Need 100)</span>
                     <Check className="h-5 w-5" />
                   </>
+                ) : selectedQueries.size < 4 ? (
+                  <>
+                    <span>Select at least 4 queries to continue ({selectedQueries.size}/4)</span>
+                    <Check className="h-5 w-5" />
+                  </>
                 ) : (
                   <>
-                    <span>Complete Setup (100 credits)</span>
+                    <span>Complete Setup ({selectedQueries.size} queries, 100 credits)</span>
                     <Check className="h-5 w-5" />
                   </>
                 )}

@@ -492,7 +492,7 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
       response: selectedQuery.results.perplexity.response,
       citations: perplexityCitations
     } : undefined
-  });
+  }, selectedBrand?.competitors || []);
   
   // Debug logging
   console.log('🔍 Brand Analysis Debug:', {
@@ -927,11 +927,10 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
                     Link Cited
                 </span>
                 )}
-                {/* Future: Competitor detection will go here */}
-                {false && (
+                {brandAnalysis.results.chatgpt?.competitorMentioned && (
                   <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
                     Competitor Mentioned
-                </span>
+                  </span>
                 )}
               </div>
             </div>
@@ -984,8 +983,7 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
                     Link Cited
                 </span>
                 )}
-                {/* Future: Competitor detection will go here */}
-                {false && (
+                {brandAnalysis.results.google?.competitorMentioned && (
                   <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
                     Competitor Mentioned
                   </span>
@@ -1030,16 +1028,15 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
                     Brand Mentioned
                 </span>
                 )}
-                {brandAnalysis.results.perplexity?.domainCited && (
+                                {brandAnalysis.results.perplexity?.domainCited && (
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                     Link Cited
                 </span>
                 )}
-                {/* Future: Competitor detection will go here */}
-                {false && (
+                {brandAnalysis.results.perplexity?.competitorMentioned && (
                   <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
                     Competitor Mentioned
-                </span>
+                  </span>
                 )}
               </div>
             </div>
@@ -1298,7 +1295,7 @@ export default function QueriesContent(): React.ReactElement {
   // Show loading while brands are being fetched
   if (brandLoading) {
     return (
-      <DashboardLayout title="Queries">
+      <DashboardLayout>
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center space-x-2 text-muted-foreground">
             <RefreshCw className="h-5 w-5 animate-spin" />
@@ -1312,7 +1309,7 @@ export default function QueriesContent(): React.ReactElement {
   // Show empty state if no brands
   if (brands.length === 0) {
     return (
-      <DashboardLayout title="Queries">
+      <DashboardLayout>
         <div className="text-center py-12">
           <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">No Brands Found</h3>
@@ -1330,7 +1327,7 @@ export default function QueriesContent(): React.ReactElement {
   // Show message if no brand is selected
   if (!selectedBrand) {
     return (
-      <DashboardLayout title="Queries">
+      <DashboardLayout>
         <div className="text-center py-12">
           <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">No Brand Selected</h3>
@@ -1343,13 +1340,16 @@ export default function QueriesContent(): React.ReactElement {
   }
 
   return (
-    <DashboardLayout title="Queries">
+    <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold text-foreground">Queries</h1>
-            <span className="text-muted-foreground">for {selectedBrand.companyName}</span>
+            <WebLogo domain={selectedBrand.domain} size={40} />
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Queries</h1>
+              <p className="text-muted-foreground">for {selectedBrand.companyName}</p>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <button 

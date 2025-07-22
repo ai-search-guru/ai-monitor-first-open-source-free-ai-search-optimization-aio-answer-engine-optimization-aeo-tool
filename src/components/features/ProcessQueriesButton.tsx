@@ -7,6 +7,9 @@ import { RefreshCw, Zap, AlertCircle, CheckCircle, RotateCcw, StopCircle, Credit
 import { updateBrandWithQueryResults } from '@/firebase/firestore/getUserBrands';
 import { saveDetailedQueryResults } from '@/firebase/firestore/detailedQueryResults';
 import { calculateCumulativeAnalytics, saveBrandAnalytics } from '@/firebase/firestore/brandAnalytics';
+import { calculateCumulativeCompetitorAnalytics } from '@/utils/competitor-analytics';
+import { saveCompetitorAnalytics } from '@/firebase/firestore/competitorAnalytics';
+import { Competitor } from '@/lib/competitor-matching';
 import { getFirebaseIdTokenWithRetry } from '@/utils/getFirebaseToken';
 
 interface ProcessQueriesButtonProps {
@@ -388,6 +391,49 @@ export default function ProcessQueriesButton({
           } catch (analyticsError) {
             console.error('❌ Error calculating/saving incremental analytics:', analyticsError);
             // Don't fail the entire process for analytics errors
+          }
+
+          // Calculate and save competitor analytics after each query
+          try {
+            setMessage(`Updating competitor analytics for ${brandName}...`);
+            
+            // Convert brand competitors to Competitor format
+            const competitors: Competitor[] = (targetBrand.competitors || []).map(comp => ({
+              name: comp,
+              domain: undefined, // Will be enhanced later to include competitor domains
+              aliases: undefined
+            }));
+            
+            if (competitors.length > 0) {
+              const competitorAnalyticsData = calculateCumulativeCompetitorAnalytics(
+                targetBrand.userId,
+                targetBrandId!,
+                targetBrand.companyName,
+                targetBrand.domain,
+                processingSessionId,
+                processingSessionTimestamp,
+                competitors,
+                allResults // Use all results processed so far
+              );
+              
+              const { result: competitorSaveResult, error: competitorSaveError } = await saveCompetitorAnalytics(competitorAnalyticsData);
+              
+              if (competitorSaveResult?.success) {
+                console.log(`✅ Incremental competitor analytics saved after query ${processedCount}:`, {
+                  totalCompetitorMentions: competitorAnalyticsData.totalCompetitorMentions,
+                  competitorVisibilityScore: competitorAnalyticsData.competitorVisibilityScore,
+                  uniqueCompetitorsDetected: competitorAnalyticsData.uniqueCompetitorsDetected,
+                  topCompetitor: competitorAnalyticsData.insights.topCompetitor
+                });
+              } else {
+                console.error('❌ Error saving incremental competitor analytics:', competitorSaveError);
+              }
+            } else {
+              console.log('ℹ️ No competitors defined for brand, skipping competitor analytics');
+            }
+          } catch (competitorAnalyticsError) {
+            console.error('❌ Error calculating/saving competitor analytics:', competitorAnalyticsError);
+            // Don't fail the entire process for competitor analytics errors
           }
 
           // Small delay between queries

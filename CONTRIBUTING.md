@@ -1,4 +1,4 @@
-# Contributing to Next.js 13 Firebase Starter
+# Contributing to AI Monitor Free AIO AEO Geo Tool
 
 Thank you for considering contributing to this project and welcome contributions from the community to help improve our project! This document provides guidelines for contributing and interacting with our project.
 

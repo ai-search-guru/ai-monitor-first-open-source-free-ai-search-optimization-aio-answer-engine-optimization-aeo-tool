@@ -39,7 +39,7 @@ export default function TestBrandAnalyticsPage(): React.ReactElement {
   };
 
   return (
-    <DashboardLayout title="Brand Analytics Test">
+    <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

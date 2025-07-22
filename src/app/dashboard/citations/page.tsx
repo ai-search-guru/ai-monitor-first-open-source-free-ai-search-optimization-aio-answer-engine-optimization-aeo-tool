@@ -384,7 +384,7 @@ export default function CitationsPage(): React.ReactElement {
   // Show loading while brands are being fetched
   if (brandLoading) {
     return (
-      <DashboardLayout title="Citations">
+      <DashboardLayout>
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center space-x-2 text-muted-foreground">
             <RefreshCw className="h-5 w-5 animate-spin" />
@@ -398,7 +398,7 @@ export default function CitationsPage(): React.ReactElement {
   // Show empty state if no brands
   if (brands.length === 0) {
     return (
-      <DashboardLayout title="Citations">
+      <DashboardLayout>
         <div className="text-center py-12">
           <Quote className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">No Brands Found</h3>
@@ -416,7 +416,7 @@ export default function CitationsPage(): React.ReactElement {
   // Show brand selection if no brand selected
   if (!selectedBrand) {
     return (
-      <DashboardLayout title="Citations">
+      <DashboardLayout>
         <div className="text-center py-12">
           <Quote className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">Select a Brand</h3>
@@ -429,15 +429,16 @@ export default function CitationsPage(): React.ReactElement {
   }
 
   return (
-    <DashboardLayout title="Citations">
+    <DashboardLayout>
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Citations Analysis</h1>
-            <p className="text-muted-foreground">
-              Comprehensive view of all citations for {selectedBrand.companyName}
-            </p>
+          <div className="flex items-center space-x-4">
+            <WebLogo domain={selectedBrand.domain} size={40} />
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Citations Analysis</h1>
+              <p className="text-muted-foreground">for {selectedBrand.companyName}</p>
+            </div>
           </div>
           <div className="flex items-center space-x-3">
             <button
