@@ -16,4 +16,6 @@ const firebaseConfig = {
 // Initialize Firebase
 let firebase_app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
+// This line exports the initialized Firebase app instance as the default export of this module.
+// By doing so, other parts of the application can import this file and use the Firebase app instance directly.
 export default firebase_app;
