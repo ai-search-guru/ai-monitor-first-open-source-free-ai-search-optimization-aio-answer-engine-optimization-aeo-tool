@@ -1,7 +1,7 @@
 'use client'
 import React from 'react';
 import { BrandAnalyticsData, LifetimeBrandAnalytics } from '@/firebase/firestore/brandAnalytics';
-import { TrendingUp, TrendingDown, Minus, Award, Eye, Link, MessageSquare, Calendar, Clock, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Circle, Award, Eye, Link, MessageSquare, Calendar, Clock, BarChart3 } from 'lucide-react';
 
 interface BrandAnalyticsDisplayProps {
   latestAnalytics?: BrandAnalyticsData | null;
@@ -40,7 +40,7 @@ export default function BrandAnalyticsDisplay({
       case 'declining':
         return <TrendingDown className="w-4 h-4 text-red-600" />;
       default:
-        return <Minus className="w-4 h-4 text-gray-600" />;
+        return <Circle className="w-4 h-4 text-green-600 fill-current" />;
     }
   };
 
@@ -90,7 +90,9 @@ export default function BrandAnalyticsDisplay({
           {!isLifetime && latestAnalytics && (
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               {getTrendIcon(latestAnalytics.insights?.brandVisibilityTrend ?? 'stable')}
-              <span className="capitalize">{latestAnalytics.insights?.brandVisibilityTrend ?? 'stable'}</span>
+              <span className="capitalize">
+                {latestAnalytics.insights?.brandVisibilityTrend === 'stable' ? 'Connection Stable' : latestAnalytics.insights?.brandVisibilityTrend ?? 'Connection Stable'}
+              </span>
             </div>
           )}
         </div>
