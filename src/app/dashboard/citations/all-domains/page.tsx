@@ -2,12 +2,10 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useBrandContext } from '@/context/BrandContext';
-import { useBrandQueries } from '@/hooks/useBrandQueries';
+import { useLifetimeCitations } from '@/hooks/useLifetimeCitations';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Card from '@/components/shared/Card';
-import { extractChatGPTCitations } from '@/components/features/ChatGPTResponseRenderer';
-import { extractGoogleAIOverviewCitations } from '@/components/features/GoogleAIOverviewRenderer';
-import { extractPerplexityCitations } from '@/components/features/PerplexityResponseRenderer';
+// Citation extraction functions no longer needed - using lifetime data
 import WebLogo from '@/components/shared/WebLogo';
 import { 
   ArrowLeft,
@@ -39,10 +37,11 @@ interface Citation {
 export default function AllDomainsPage(): React.ReactElement {
   const { selectedBrand } = useBrandContext();
   const { 
-    queries, 
+    citations: lifetimeCitations, 
     loading: queriesLoading, 
-    error: queriesError 
-  } = useBrandQueries({ brandId: selectedBrand?.id });
+    error: queriesError,
+    stats: lifetimeStats
+  } = useLifetimeCitations({ brandId: selectedBrand?.id });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvider, setSelectedProvider] = useState('');
@@ -65,90 +64,17 @@ export default function AllDomainsPage(): React.ReactElement {
     return 'Third Party';
   };
 
-  // Extract all citations from queries
+  // Use lifetime citations from the hook
   const allCitations = useMemo(() => {
-    if (!queries || !Array.isArray(queries)) return [];
-
-    const citations: Citation[] = [];
+    if (!lifetimeCitations || !selectedBrand) return [];
     
-    queries.forEach((query: any) => {
-      if (!query.results) return;
-      
-      // Extract ChatGPT citations
-      if (query.results?.chatgpt?.response) {
-        const chatgptCitations = extractChatGPTCitations(query.results.chatgpt.response);
-        chatgptCitations.forEach((citation, index) => {
-          const domain = extractDomainFromUrl(citation.url);
-          if (!domain) return;
-
-          citations.push({
-            id: `${query.id}-chatgpt-${index}`,
-            url: citation.url,
-            text: citation.text,
-            source: citation.source || 'ChatGPT',
-            provider: 'chatgpt' as 'chatgpt' | 'perplexity' | 'googleAI',
-            query: query.query,
-            queryId: query.id,
-            brandName: selectedBrand?.name || '',
-            domain,
-            timestamp: query.timestamp || new Date().toISOString(),
-            isBrandMention: checkBrandMention(citation.text, citation.url, selectedBrand?.name || '', selectedBrand?.domain),
-            isDomainCitation: checkDomainCitation(citation.url, selectedBrand?.domain)
-          });
-        });
-      }
-
-      // Extract Google AI citations
-      if (query.results?.googleAI?.aiOverview) {
-        const googleCitations = extractGoogleAIOverviewCitations(query.results.googleAI.aiOverview, query.results.googleAI);
-        googleCitations.forEach((citation, index) => {
-          const domain = extractDomainFromUrl(citation.url);
-          if (!domain) return;
-
-          citations.push({
-            id: `${query.id}-googleAI-${index}`,
-            url: citation.url,
-            text: citation.text,
-            source: citation.source || 'Google AI',
-            provider: 'googleAI' as 'chatgpt' | 'perplexity' | 'googleAI',
-            query: query.query,
-            queryId: query.id,
-            brandName: selectedBrand?.name || '',
-            domain,
-            timestamp: query.timestamp || new Date().toISOString(),
-            isBrandMention: checkBrandMention(citation.text, citation.url, selectedBrand?.name || '', selectedBrand?.domain),
-            isDomainCitation: checkDomainCitation(citation.url, selectedBrand?.domain)
-          });
-        });
-      }
-
-      // Extract Perplexity citations
-      if (query.results?.perplexity?.response) {
-        const perplexityCitations = extractPerplexityCitations(query.results.perplexity.response);
-        perplexityCitations.forEach((citation, index) => {
-          const domain = extractDomainFromUrl(citation.url);
-          if (!domain) return;
-
-          citations.push({
-            id: `${query.id}-perplexity-${index}`,
-            url: citation.url,
-            text: citation.text,
-            source: citation.source || 'Perplexity',
-            provider: 'perplexity' as 'chatgpt' | 'perplexity' | 'googleAI',
-            query: query.query,
-            queryId: query.id,
-            brandName: selectedBrand?.name || '',
-            domain,
-            timestamp: query.timestamp || new Date().toISOString(),
-            isBrandMention: checkBrandMention(citation.text, citation.url, selectedBrand?.name || '', selectedBrand?.domain),
-            isDomainCitation: checkDomainCitation(citation.url, selectedBrand?.domain)
-          });
-        });
-      }
+    console.log('🔍 All-domains page - using lifetime citations:', {
+      citationsCount: lifetimeCitations.length,
+      selectedBrand: selectedBrand.companyName
     });
 
-    return citations;
-  }, [queries, selectedBrand]);
+    return lifetimeCitations;
+  }, [lifetimeCitations, selectedBrand]);
 
   // Filter citations
   const filteredCitations = useMemo(() => {
@@ -193,7 +119,6 @@ export default function AllDomainsPage(): React.ReactElement {
           domain: citation.domain,
           citations: [],
           queries: new Set(),
-          uniquePages: new Set(),
           isBrandDomain: citation.isDomainCitation,
           isCompetitor: false // You can enhance this logic
         });
@@ -202,7 +127,6 @@ export default function AllDomainsPage(): React.ReactElement {
       const domainStat = stats.get(citation.domain);
       domainStat.citations.push(citation);
       domainStat.queries.add(citation.queryId);
-      domainStat.uniquePages.add(citation.url);
     });
     
     // Convert to array and sort by number of answers
@@ -219,12 +143,11 @@ export default function AllDomainsPage(): React.ReactElement {
 
   const handleExport = () => {
     const csvContent = [
-      ['Domain', 'Source Type', 'Total Citations', 'Unique Pages', 'Providers'].join(','),
+              ['Domain', 'Source Type', 'Total Citations', 'Providers'].join(','),
       ...domainStats.map(stat => [
         stat.domain,
         getSourceType(stat.domain, stat.isBrandDomain, stat.isCompetitor),
         stat.citations.length,
-        stat.uniquePages.size,
         [...new Set(stat.citations.map(c => c.provider))].join(';')
       ].join(','))
     ].join('\n');
@@ -304,7 +227,7 @@ export default function AllDomainsPage(): React.ReactElement {
               </div>
             </div>
             <div className="mt-4 text-sm text-gray-600">
-              Showing {domainStats.length} domains from {filteredCitations.length} citations
+              Showing {domainStats.length} domains
             </div>
           </div>
 
@@ -370,9 +293,6 @@ export default function AllDomainsPage(): React.ReactElement {
                                 >
                                   <ExternalLink className="w-4 h-4" />
                                 </a>
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {domainStat.uniquePages.size} page{domainStat.uniquePages.size !== 1 ? 's' : ''}
                               </div>
                             </div>
                           </div>
@@ -475,9 +395,6 @@ export default function AllDomainsPage(): React.ReactElement {
                                     <ExternalLink className="w-4 h-4" />
                                   </a>
                                 </div>
-                                <div className="text-sm text-gray-500">
-                                  {domainStat.uniquePages.size} page{domainStat.uniquePages.size !== 1 ? 's' : ''}
-                                </div>
                               </div>
                             </div>
                           </td>
@@ -543,31 +460,4 @@ export default function AllDomainsPage(): React.ReactElement {
   );
 }
 
-function extractDomainFromUrl(url: string): string | undefined {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname.replace('www.', '');
-  } catch {
-    return undefined;
-  }
-}
-
-function checkBrandMention(text: string, url: string, brandName: string, brandDomain?: string): boolean {
-  if (!brandName) return false;
-  
-  const lowerText = text.toLowerCase();
-  const lowerBrandName = brandName.toLowerCase();
-  
-  // Check if brand name is mentioned in the citation text
-  if (lowerText.includes(lowerBrandName)) return true;
-  
-  // Check if the URL is from the brand's domain
-  if (brandDomain && url.includes(brandDomain)) return true;
-  
-  return false;
-}
-
-function checkDomainCitation(url: string, brandDomain?: string): boolean {
-  if (!brandDomain) return false;
-  return url.includes(brandDomain);
-} 
+// Helper functions no longer needed - using pre-processed lifetime citation data 

@@ -502,16 +502,12 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
     selectedQuery: selectedQuery.query
   });
 
-  // Function to get citation counts for each provider
+  // Function to get citation counts for each provider - use the same citations from brand analysis
   const getCitationCounts = () => {
-    const chatgptCitations = extractChatGPTCitations(selectedQuery.results.chatgpt?.response || '');
-    const googleCitations = extractGoogleCitations(selectedQuery.results.googleAI?.aiOverview || '', selectedQuery.results.googleAI);
-    const perplexityCitations = extractPerplexityCitations(selectedQuery.results.perplexity?.response || '', selectedQuery.results.perplexity);
-    
     return {
-      chatgpt: chatgptCitations.length,
-      google: googleCitations.length,
-      perplexity: perplexityCitations.length
+      chatgpt: brandAnalysis.results.chatgpt?.citationCount || 0,
+      google: brandAnalysis.results.google?.citationCount || 0,
+      perplexity: brandAnalysis.results.perplexity?.citationCount || 0
     };
   };
   
@@ -639,7 +635,7 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
     );
 
     const renderChatGPTCitations = () => {
-      const links = extractChatGPTCitations(selectedQuery.results.chatgpt?.response || '');
+      const links = brandAnalysis.results.chatgpt?.citations || [];
       
       return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -804,7 +800,7 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
     };
 
     const renderGoogleCitations = () => {
-      const links = extractGoogleCitations(selectedQuery.results.googleAI?.aiOverview || '', selectedQuery.results.googleAI);
+      const links = brandAnalysis.results.google?.citations || [];
       
       return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -1079,11 +1075,11 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
         <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                AI Platform Responses
-              </h2>
-              <p className="text-sm text-gray-600 line-clamp-2">
+              <h2 className="text-2xl font-bold text-gray-900 mb-1 line-clamp-2">
                 "{selectedQuery.query}"
+              </h2>
+              <p className="text-sm text-gray-600">
+                AI Platform Responses
               </p>
             </div>
             <button
@@ -1096,29 +1092,29 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
         </div>
 
         {/* Brand Mention & Citation Analysis Section */}
-        <div className="px-8 py-6 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-gray-100">
-          <div className="flex items-center space-x-2 mb-4">
+        <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-gray-100">
+          <div className="flex items-center space-x-2 mb-3">
             <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
             <span className="text-sm font-semibold text-gray-700">Brand Mention & Citation Analysis</span>
           </div>
           
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
-              <div className="text-2xl font-bold text-blue-700">{brandAnalysis.totals.totalBrandMentions}</div>
-              <div className="text-sm text-blue-600 font-medium">Brand Mentions</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
+              <div className="text-xl font-bold text-blue-700">{brandAnalysis.totals.totalBrandMentions}</div>
+              <div className="text-xs text-blue-600 font-medium">Brand Mentions</div>
             </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
-              <div className="text-2xl font-bold text-green-700">{brandAnalysis.totals.totalDomainCitations}</div>
-              <div className="text-sm text-green-600 font-medium">Domain Citations</div>
+            <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
+              <div className="text-xl font-bold text-green-700">{brandAnalysis.totals.totalDomainCitations}</div>
+              <div className="text-xs text-green-600 font-medium">Domain Citations</div>
             </div>
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
-              <div className="text-2xl font-bold text-purple-700">{brandAnalysis.totals.totalCitations}</div>
-              <div className="text-sm text-purple-600 font-medium">Total Citations</div>
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
+              <div className="text-xl font-bold text-purple-700">{brandAnalysis.totals.totalCitations}</div>
+              <div className="text-xs text-purple-600 font-medium">Total Citations</div>
             </div>
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
-              <div className="text-2xl font-bold text-orange-700">{brandAnalysis.totals.providersWithBrandMention}/{Object.keys(brandAnalysis.results).length}</div>
-              <div className="text-sm text-orange-600 font-medium">Providers w/ Brand</div>
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-3 rounded-lg border border-orange-200">
+              <div className="text-xl font-bold text-orange-700">{brandAnalysis.totals.providersWithBrandMention}/{Object.keys(brandAnalysis.results).length}</div>
+              <div className="text-xs text-orange-600 font-medium">Providers w/ Brand</div>
             </div>
           </div>
 

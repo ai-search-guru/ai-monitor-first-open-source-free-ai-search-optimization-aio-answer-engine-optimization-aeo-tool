@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { BrandAnalyticsData, LifetimeBrandAnalytics } from '@/firebase/firestore/brandAnalytics';
 import { Award, Eye, Link, MessageSquare, Calendar, Clock, BarChart3 } from 'lucide-react';
 
@@ -10,12 +10,12 @@ interface BrandAnalyticsDisplayProps {
   className?: string;
 }
 
-export default function BrandAnalyticsDisplay({ 
+const BrandAnalyticsDisplay = React.memo<BrandAnalyticsDisplayProps>(({ 
   latestAnalytics,
   lifetimeAnalytics, 
   showDetails = true, 
   className = '' 
-}: BrandAnalyticsDisplayProps): React.ReactElement {
+}) => {
   const [activeTab, setActiveTab] = useState<'latest' | 'lifetime'>(() => {
     // Default to the view that has data, prefer lifetime if both exist
     if (latestAnalytics && lifetimeAnalytics) return 'lifetime';
@@ -24,7 +24,7 @@ export default function BrandAnalyticsDisplay({
     return 'lifetime';
   });
   
-  const formatDate = (timestamp: any) => {
+  const formatDate = useCallback((timestamp: any) => {
     if (!timestamp) return 'Unknown';
     
     const date = timestamp.seconds ? 
@@ -38,13 +38,13 @@ export default function BrandAnalyticsDisplay({
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
+  }, []);
 
 
 
 
 
-  const getProviderIcon = (provider: string) => {
+  const getProviderIcon = useCallback((provider: string) => {
     switch (provider) {
       case 'chatgpt':
         return (
@@ -70,9 +70,36 @@ export default function BrandAnalyticsDisplay({
       default:
         return <Award className="w-5 h-5 text-gray-600" />;
     }
-  };
+  }, []);
 
-  const renderAnalyticsSection = (
+  // Memoize provider stats processing to avoid recalculation on every render
+  const processedProviderStats = useMemo(() => {
+    const stats = latestAnalytics?.providerStats || lifetimeAnalytics?.providerStats;
+    if (!stats) return {};
+    
+    return Object.entries(stats).map(([provider, providerStats]) => ({
+      provider,
+      ...providerStats,
+      icon: getProviderIcon(provider)
+    }));
+  }, [latestAnalytics?.providerStats, lifetimeAnalytics?.providerStats, getProviderIcon]);
+
+  // Memoize analytics metrics to prevent unnecessary re-renders
+  const analyticsMetrics = useMemo(() => {
+    const analytics = activeTab === 'latest' ? latestAnalytics : lifetimeAnalytics;
+    if (!analytics) return null;
+
+    return {
+      visibilityScore: analytics.brandVisibilityScore,
+      brandMentions: analytics.totalBrandMentions,
+      domainCitations: analytics.totalDomainCitations,
+      totalCitations: analytics.totalCitations,
+      queriesProcessed: analytics.totalQueriesProcessed,
+      insights: analytics.insights
+    };
+  }, [activeTab, latestAnalytics, lifetimeAnalytics]);
+
+  const renderAnalyticsSection = useCallback((
     analytics: BrandAnalyticsData | LifetimeBrandAnalytics,
     title: string,
     indicator: React.ReactNode,
@@ -185,24 +212,24 @@ export default function BrandAnalyticsDisplay({
             <div className="bg-gray-50 p-4 rounded-xl">
               <h4 className="text-sm font-semibold text-gray-700 mb-3">Provider Performance</h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {Object.entries(analytics.providerStats).map(([provider, stats]) => (
-                  <div key={provider} className="bg-white p-3 rounded-lg border border-gray-200">
+                {processedProviderStats.map((providerData) => (
+                  <div key={providerData.provider} className="bg-white p-3 rounded-lg border border-gray-200">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-medium text-gray-600 capitalize">{provider}</span>
-                      <span className="text-xs text-gray-500">{stats.queriesProcessed} queries</span>
+                      <span className="text-xs font-medium text-gray-600 capitalize">{providerData.provider}</span>
+                      <span className="text-xs text-gray-500">{providerData.queriesProcessed} queries</span>
                     </div>
                     <div className="space-y-1">
                       <div className="flex justify-between">
                         <span className="text-xs text-gray-500">Mentions:</span>
-                        <span className="text-xs font-medium">{stats.brandMentions}</span>
+                        <span className="text-xs font-medium">{providerData.brandMentions}</span>
                       </div>
                         <div className="flex justify-between">
                         <span className="text-xs text-gray-500">Citations:</span>
-                        <span className="text-xs font-medium">{stats.citations}</span>
+                        <span className="text-xs font-medium">{providerData.citations}</span>
                         </div>
                         <div className="flex justify-between">
                         <span className="text-xs text-gray-500">Domain:</span>
-                        <span className="text-xs font-medium">{stats.domainCitations}</span>
+                        <span className="text-xs font-medium">{providerData.domainCitations}</span>
                       </div>
                     </div>
                   </div>
@@ -261,7 +288,7 @@ export default function BrandAnalyticsDisplay({
         )}
     </div>
   );
-  };
+  }, [formatDate, processedProviderStats, showDetails]);
 
   // If no data available
   if (!latestAnalytics && !lifetimeAnalytics) {
@@ -342,4 +369,8 @@ export default function BrandAnalyticsDisplay({
       </div>
     </div>
   );
-} 
+});
+
+BrandAnalyticsDisplay.displayName = 'BrandAnalyticsDisplay';
+
+export default BrandAnalyticsDisplay;

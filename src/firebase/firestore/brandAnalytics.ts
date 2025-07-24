@@ -78,6 +78,24 @@ export interface BrandAnalyticsData {
   createdAt: any;
 }
 
+// Interface for individual citation data in lifetime analytics
+export interface LifetimeCitation {
+  id: string;
+  url: string;
+  text: string;
+  source: string;
+  provider: 'chatgpt' | 'perplexity' | 'googleAI';
+  query: string;
+  queryId: string;
+  brandName: string;
+  domain?: string;
+  timestamp: string;
+  type?: string;
+  isBrandMention?: boolean;
+  isDomainCitation?: boolean;
+  processingSessionId: string;
+}
+
 // Interface for lifetime analytics data (aggregated across all historical queries)
 export interface LifetimeBrandAnalytics {
   userId: string;
@@ -92,6 +110,9 @@ export interface LifetimeBrandAnalytics {
   brandVisibilityScore: number;
   totalCitations: number;
   totalDomainCitations: number;
+  
+  // Individual citation data for detailed analysis
+  allCitations: LifetimeCitation[];
   
   // Provider-specific lifetime data
   providerStats: {
@@ -542,21 +563,51 @@ export async function calculateLifetimeBrandAnalytics(
     // If the brand document has storage references, retrieve full data from Cloud Storage
     if ((brand as any).storageReferences?.queryProcessingResults) {
       console.log('📥 Brand has Cloud Storage references, retrieving full query results for analytics...');
-      try {
-        const { document: fullBrandData } = await retrieveDocumentWithLargeData(
-          'v8userbrands', 
-          brandId, 
-          ['queryProcessingResults']
-        );
-        
-        if (fullBrandData?.queryProcessingResults) {
-          brand.queryProcessingResults = fullBrandData.queryProcessingResults;
-          console.log(`✅ Retrieved ${fullBrandData.queryProcessingResults.length} query results from Cloud Storage for analytics`);
+      
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          const { document: fullBrandData } = await retrieveDocumentWithLargeData(
+            'v8userbrands', 
+            brandId, 
+            ['queryProcessingResults']
+          );
+          
+          if (fullBrandData?.queryProcessingResults) {
+            brand.queryProcessingResults = fullBrandData.queryProcessingResults;
+            console.log(`✅ Retrieved ${fullBrandData.queryProcessingResults.length} query results from Cloud Storage for analytics (attempt ${retryCount + 1})`);
+            break; // Success, exit retry loop
+          } else {
+            console.warn(`⚠️ No query results found in Cloud Storage (attempt ${retryCount + 1})`);
+          }
+        } catch (storageError) {
+          retryCount++;
+          console.warn(`⚠️ Failed to retrieve query results from Cloud Storage (attempt ${retryCount}/${maxRetries}):`, storageError);
+          
+          if (retryCount < maxRetries) {
+            // Wait before retrying (exponential backoff)
+            const delay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
+            console.log(`🔄 Retrying Cloud Storage retrieval in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            console.error(`❌ All ${maxRetries} Cloud Storage retrieval attempts failed. Continuing with truncated Firestore data.`);
+            console.error('❌ This may cause analytics to be limited to ~50 queries instead of full dataset');
+            
+            // Log diagnostic information
+            console.log('🔍 Diagnostic info:', {
+              brandId,
+              fireBrandQueryCount: brand.queryProcessingResults?.length || 0,
+              hasStorageRefs: !!(brand as any).storageReferences?.queryProcessingResults,
+              storageRefPath: (brand as any).storageReferences?.queryProcessingResults?.path || 'undefined'
+            });
+          }
         }
-      } catch (storageError) {
-        console.warn('⚠️ Failed to retrieve query results from Cloud Storage for analytics:', storageError);
-        // Continue with truncated data from Firestore
       }
+    } else {
+      console.log('ℹ️ No Cloud Storage references found, using Firestore data only');
+      console.log('🔍 Query count from Firestore:', brand.queryProcessingResults?.length || 0);
     }
     
     const brandName = brand.companyName;
@@ -567,6 +618,10 @@ export async function calculateLifetimeBrandAnalytics(
     const allQueryResults: any[] = [];
     let totalProcessingSessions = 0;
     const processingSessions = new Set<string>();
+    
+    // Store original Firestore query count for diagnostics
+    const originalFirestoreQueryCount = brand.queryProcessingResults?.length || 0;
+    (brand as any)._originalFirestoreQueryCount = originalFirestoreQueryCount;
     
     // 1. Get current session results from brand document
     if (brand.queryProcessingResults && brand.queryProcessingResults.length > 0) {
@@ -579,9 +634,18 @@ export async function calculateLifetimeBrandAnalytics(
     }
     
     // 2. Try to get historical results from v8userqueries collection (fault-tolerant)
+    console.log('🔍 Attempting to retrieve historical queries from v8userqueries collection...');
     try {
       const historicalQueriesResult = await getQueriesByBrand(brandId);
-      if (historicalQueriesResult.result) {
+      if (historicalQueriesResult.result && historicalQueriesResult.result.length > 0) {
+        console.log(`📚 Found ${historicalQueriesResult.result.length} historical queries in v8userqueries collection`);
+        
+        // Log the status breakdown for diagnostic purposes
+        const statusCounts = historicalQueriesResult.result.reduce((acc, q) => {
+          acc[q.status || 'unknown'] = (acc[q.status || 'unknown'] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('📊 Historical query status breakdown:', statusCounts);
         // Convert historical query format to current format (fault-tolerant)
         const convertedResults = historicalQueriesResult.result
           .filter(q => q.status === 'completed' && q.aiResponses && q.aiResponses.length > 0)
@@ -628,6 +692,9 @@ export async function calculateLifetimeBrandAnalytics(
           });
         
         allQueryResults.push(...convertedResults);
+        console.log(`✅ Successfully converted ${convertedResults.length} historical queries to current format`);
+      } else {
+        console.log('ℹ️ No historical queries found in v8userqueries collection');
       }
     } catch (error) {
       console.warn('⚠️ Could not fetch historical queries (fault-tolerant):', error);
@@ -636,7 +703,42 @@ export async function calculateLifetimeBrandAnalytics(
     
     totalProcessingSessions = processingSessions.size;
     
-    console.log(`📊 Found ${allQueryResults.length} total queries across ${totalProcessingSessions} sessions`);
+    console.log(`📊 Analytics data collection summary:`, {
+      totalQueries: allQueryResults.length,
+      totalSessions: totalProcessingSessions,
+      brandDocumentQueries: brand.queryProcessingResults?.length || 0,
+      historicalQueries: allQueryResults.length - (brand.queryProcessingResults?.length || 0),
+      brandId,
+      brandName
+    });
+    
+    // Additional diagnostic: Log query source breakdown
+    const querySourceBreakdown = allQueryResults.reduce((acc, q) => {
+      const isLegacy = q.processingSessionId?.startsWith('legacy_');
+      acc[isLegacy ? 'historical' : 'current'] = (acc[isLegacy ? 'historical' : 'current'] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('🔍 Query source breakdown:', querySourceBreakdown);
+    
+    // Run diagnostics if debug mode is enabled or if we have potential issues
+    const shouldRunDiagnostics = typeof window !== 'undefined' && 
+      (localStorage.getItem(`analyticsDebug_${brandId}`) === 'true' || allQueryResults.length <= 50);
+    
+    if (shouldRunDiagnostics) {
+      try {
+        const { diagnoseAnalyticsIssues, logAnalyticsDiagnostic } = await import('@/utils/analyticsDebug');
+        const diagnostic = diagnoseAnalyticsIssues(
+          brandId,
+          allQueryResults,
+          !!(brand as any).storageReferences?.queryProcessingResults,
+          brand.queryProcessingResults && brand.queryProcessingResults.length > (brand as any)._originalFirestoreQueryCount || 0,
+          undefined // We'd need to pass storage errors from the retry logic above
+        );
+        logAnalyticsDiagnostic(diagnostic);
+      } catch (debugError) {
+        console.warn('⚠️ Could not run analytics diagnostics:', debugError);
+      }
+    }
     
     if (allQueryResults.length === 0) {
       // Return empty analytics if no queries found
@@ -688,6 +790,141 @@ export async function calculateLifetimeBrandAnalytics(
     const firstQueryProcessed = queryDates.length > 0 ? queryDates[0].toISOString() : null;
     const lastQueryProcessed = queryDates.length > 0 ? queryDates[queryDates.length - 1].toISOString() : null;
     
+    // Helper functions for citation extraction
+    const extractDomainFromUrl = (url: string): string | undefined => {
+      try {
+        const urlObj = new URL(url);
+        return urlObj.hostname.replace(/^www\./, '');
+      } catch (e) {
+        console.error('Invalid URL for domain extraction:', url, e);
+        return undefined;
+      }
+    };
+    
+    const checkBrandMention = (text: string, url: string, brandName: string, brandDomain?: string): boolean => {
+      if (!brandName) return false;
+      const lowerText = text.toLowerCase();
+      const lowerBrandName = brandName.toLowerCase();
+      return lowerText.includes(lowerBrandName);
+    };
+    
+    const checkDomainCitation = (url: string, brandDomain?: string): boolean => {
+      if (!brandDomain) return false;
+      const lowerUrl = url.toLowerCase();
+      const lowerDomain = brandDomain.toLowerCase();
+      
+      // Check for "https://www." + domain specifically
+      const httpsWwwDomain = `https://www.${lowerDomain}`;
+      return lowerUrl.includes(httpsWwwDomain);
+    };
+    
+    // Extract all individual citations from historical queries
+    console.log('🔍 Extracting individual citations from all historical queries...');
+    const allCitations: LifetimeCitation[] = [];
+    let citationId = 1;
+    
+    allQueryResults.forEach(query => {
+      const queryTimestamp = query.date || new Date().toISOString();
+      
+      // Extract ChatGPT citations
+      if (query.results?.chatgpt?.response) {
+        try {
+          const { extractChatGPTCitations } = require('@/components/features/ChatGPTResponseRenderer');
+          const chatgptCitations = extractChatGPTCitations(query.results.chatgpt.response);
+          
+          chatgptCitations.forEach((citation: any) => {
+            const domain = extractDomainFromUrl(citation.url);
+            if (!domain || domain === 'google.com') return; // Skip google.com and invalid domains
+            
+            allCitations.push({
+              id: `lifetime-chatgpt-${citationId++}`,
+              url: citation.url,
+              text: citation.text,
+              source: citation.source || 'ChatGPT',
+              provider: 'chatgpt',
+              query: query.query,
+              queryId: query.id || '',
+              brandName,
+              domain,
+              timestamp: queryTimestamp,
+              type: 'text_extraction',
+              isBrandMention: checkBrandMention(citation.text, citation.url, brandName, brandDomain),
+              isDomainCitation: checkDomainCitation(citation.url, brandDomain),
+              processingSessionId: query.processingSessionId || 'unknown'
+            });
+          });
+        } catch (error) {
+          console.warn('⚠️ Error extracting ChatGPT citations:', error);
+        }
+      }
+      
+      // Extract Google AI citations
+      if (query.results?.googleAI?.aiOverview) {
+        try {
+          const { extractGoogleAIOverviewCitations } = require('@/components/features/GoogleAIOverviewRenderer');
+          const googleCitations = extractGoogleAIOverviewCitations(query.results.googleAI.aiOverview, query.results.googleAI);
+          
+          googleCitations.forEach((citation: any) => {
+            const domain = extractDomainFromUrl(citation.url);
+            if (!domain || domain === 'google.com') return; // Skip google.com and invalid domains
+            
+            allCitations.push({
+              id: `lifetime-google-${citationId++}`,
+              url: citation.url,
+              text: citation.text,
+              source: citation.source || 'Google AI Overview',
+              provider: 'googleAI',
+              query: query.query,
+              queryId: query.id || '',
+              brandName,
+              domain,
+              timestamp: queryTimestamp,
+              type: 'ai_overview',
+              isBrandMention: checkBrandMention(citation.text, citation.url, brandName, brandDomain),
+              isDomainCitation: checkDomainCitation(citation.url, brandDomain),
+              processingSessionId: query.processingSessionId || 'unknown'
+            });
+          });
+        } catch (error) {
+          console.warn('⚠️ Error extracting Google AI citations:', error);
+        }
+      }
+      
+      // Extract Perplexity citations
+      if (query.results?.perplexity?.response) {
+        try {
+          const { extractPerplexityCitations } = require('@/components/features/PerplexityResponseRenderer');
+          const perplexityCitations = extractPerplexityCitations(query.results.perplexity.response, query.results.perplexity);
+          
+          perplexityCitations.forEach((citation: any) => {
+            const domain = extractDomainFromUrl(citation.url);
+            if (!domain || domain === 'google.com') return; // Skip google.com and invalid domains
+            
+            allCitations.push({
+              id: `lifetime-perplexity-${citationId++}`,
+              url: citation.url,
+              text: citation.text,
+              source: citation.source || 'Perplexity',
+              provider: 'perplexity',
+              query: query.query,
+              queryId: query.id || '',
+              brandName,
+              domain,
+              timestamp: queryTimestamp,
+              type: citation.type || 'structured',
+              isBrandMention: checkBrandMention(citation.text, citation.url, brandName, brandDomain),
+              isDomainCitation: checkDomainCitation(citation.url, brandDomain),
+              processingSessionId: query.processingSessionId || 'unknown'
+            });
+          });
+        } catch (error) {
+          console.warn('⚠️ Error extracting Perplexity citations:', error);
+        }
+      }
+    });
+    
+    console.log(`✅ Extracted ${allCitations.length} individual citations from ${allQueryResults.length} historical queries`);
+    
     // Convert to lifetime analytics format
     const lifetimeAnalytics: LifetimeBrandAnalytics = {
       userId,
@@ -700,6 +937,7 @@ export async function calculateLifetimeBrandAnalytics(
       brandVisibilityScore: sessionAnalytics.brandVisibilityScore,
       totalCitations: sessionAnalytics.totalCitations,
       totalDomainCitations: sessionAnalytics.totalDomainCitations,
+      allCitations, // Add the extracted individual citations
       providerStats: sessionAnalytics.providerStats,
       insights: {
         topPerformingProvider: sessionAnalytics.insights.topPerformingProvider,
@@ -749,17 +987,98 @@ export async function saveLifetimeAnalytics(analyticsData: LifetimeBrandAnalytic
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const documentId = `${analyticsData.brandId}_lifetime_${timestamp}`;
     
-    const docRef = doc(db, 'v8_lifetime_brand_analytics', documentId);
-    await setDoc(docRef, {
+    // Create a copy without large arrays to prevent write stream exhaustion
+    const analyticsDataForFirestore = {
       ...analyticsData,
+      // Remove or limit large arrays that can cause write stream exhaustion
+      allCitations: analyticsData.allCitations?.slice(0, 100) || [], // Limit to first 100 citations
       createdAt: serverTimestamp(),
-      documentType: 'lifetime_analytics'
+      documentType: 'lifetime_analytics',
+      // Add metadata about data truncation
+      dataTruncated: analyticsData.allCitations && analyticsData.allCitations.length > 100,
+      originalCitationCount: analyticsData.allCitations?.length || 0
+    };
+    
+    // Check if the data is still too large and needs Cloud Storage
+    const { exceedsFirestoreLimit } = await import('@/firebase/storage/cloudStorage');
+    
+    if (exceedsFirestoreLimit(analyticsDataForFirestore)) {
+      console.log('📦 Analytics data exceeds Firestore limits, storing in Cloud Storage...');
+      
+      // Store large data in Cloud Storage
+      const { storeLargeData } = await import('@/firebase/storage/cloudStorage');
+      const { storageRef, error: storageError } = await storeLargeData(
+        analyticsData, // Store full data in Cloud Storage
+        `lifetime-analytics/${analyticsData.brandId}`,
+        'lifetime_analytics',
+        {
+          brandId: analyticsData.brandId,
+          citationCount: analyticsData.allCitations?.length || 0
+        }
+      );
+      
+      if (storageError) {
+        console.warn('⚠️ Failed to store analytics in Cloud Storage, saving truncated version to Firestore');
+      } else {
+        // Save only a reference and summary in Firestore
+        analyticsDataForFirestore.storageRef = storageRef?.fullPath;
+        analyticsDataForFirestore.allCitations = []; // Remove citations from Firestore document
+      }
+    }
+    
+    const docRef = doc(db, 'v8_lifetime_brand_analytics', documentId);
+    await setDoc(docRef, analyticsDataForFirestore);
+    
+    console.log('✅ Lifetime analytics saved to Firestore:', {
+      documentId: docRef.id,
+      citationCount: analyticsData.allCitations?.length || 0,
+      dataTruncated: analyticsDataForFirestore.dataTruncated,
+      usedCloudStorage: !!analyticsDataForFirestore.storageRef
     });
     
-    console.log('✅ Lifetime analytics saved to Firestore:', docRef.id);
     return { success: true };
   } catch (error) {
     console.error('❌ Error saving lifetime analytics:', error);
+    
+    // If it's a write stream exhaustion error, try saving with minimal data
+    if (error.code === 'resource-exhausted' || error.message?.includes('Write stream exhausted')) {
+      console.log('🔄 Retrying with minimal analytics data due to write stream exhaustion...');
+      
+      try {
+        const minimalAnalytics = {
+          userId: analyticsData.userId,
+          brandId: analyticsData.brandId,
+          brandName: analyticsData.brandName,
+          brandDomain: analyticsData.brandDomain,
+          totalQueriesProcessed: analyticsData.totalQueriesProcessed,
+          totalBrandMentions: analyticsData.totalBrandMentions,
+          brandVisibilityScore: analyticsData.brandVisibilityScore,
+          totalCitations: analyticsData.totalCitations,
+          totalDomainCitations: analyticsData.totalDomainCitations,
+          totalProcessingSessions: analyticsData.totalProcessingSessions,
+          providerStats: analyticsData.providerStats,
+          insights: analyticsData.insights,
+          calculatedAt: analyticsData.calculatedAt,
+          // Exclude large arrays
+          allCitations: [],
+          createdAt: serverTimestamp(),
+          documentType: 'lifetime_analytics',
+          dataTruncated: true,
+          originalCitationCount: analyticsData.allCitations?.length || 0,
+          errorReason: 'write_stream_exhausted'
+        };
+        
+        const docRef = doc(db, 'v8_lifetime_brand_analytics', `${analyticsData.brandId}_lifetime_minimal_${timestamp}`);
+        await setDoc(docRef, minimalAnalytics);
+        
+        console.log('✅ Minimal lifetime analytics saved after write stream exhaustion');
+        return { success: true };
+      } catch (retryError) {
+        console.error('❌ Failed to save even minimal analytics:', retryError);
+        return { success: false, error: retryError };
+      }
+    }
+    
     return { success: false, error };
   }
 }

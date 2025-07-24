@@ -516,13 +516,23 @@ function checkBrandMention(text: string, url: string, brandName: string, brandDo
   // Check if brand name is mentioned in the citation text
   if (lowerText.includes(lowerBrandName)) return true;
   
-  // Check if the URL is from the brand's domain
-  if (brandDomain && url.includes(brandDomain)) return true;
+  // Check if the URL is from the brand's domain (check for "https://www." + domain specifically)
+  if (brandDomain) {
+    const lowerUrl = url.toLowerCase();
+    const lowerDomain = brandDomain.toLowerCase();
+    const httpsWwwDomain = `https://www.${lowerDomain}`;
+    if (lowerUrl.includes(httpsWwwDomain)) return true;
+  }
   
   return false;
 }
 
 function checkDomainCitation(url: string, brandDomain?: string): boolean {
   if (!brandDomain) return false;
-  return url.includes(brandDomain);
+  const lowerUrl = url.toLowerCase();
+  const lowerDomain = brandDomain.toLowerCase();
+  
+  // Check for "https://www." + domain specifically
+  const httpsWwwDomain = `https://www.${lowerDomain}`;
+  return lowerUrl.includes(httpsWwwDomain);
 } 

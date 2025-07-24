@@ -393,26 +393,6 @@ function PerplexityCitations({ data }: { data: PerplexityData }) {
         <div className="flex items-center space-x-2">
           <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
           <span className="text-sm font-semibold text-purple-700">Sources & Citations ({citations.length})</span>
-          {citations.length > 0 && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 ml-2">
-              ⚠️ First citation excluded
-            </span>
-          )}
-          {data.realTimeData && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 ml-2">
-              🔄 Real-time
-            </span>
-          )}
-          {citations.length > 0 && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 ml-2">
-              📊 Ranked by Authority
-            </span>
-          )}
-          {diversity && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 ml-2">
-              🌐 {diversity.totalDomains} unique domains ({diversity.diversityScore}% diversity)
-            </span>
-          )}
         </div>
       </div>
       <div className="p-6">

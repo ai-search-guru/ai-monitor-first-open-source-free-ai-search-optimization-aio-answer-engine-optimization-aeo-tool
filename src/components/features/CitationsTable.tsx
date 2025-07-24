@@ -105,13 +105,13 @@ export default function CitationsTable({ citations }: CitationsTableProps) {
             />
           </div>
           
-          {/* Provider Filter */}
+          {/* Platform Filter */}
           <select
             value={selectedProvider}
             onChange={(e) => setSelectedProvider(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">All Providers</option>
+                            <option value="all">All Platforms</option>
             <option value="chatgpt">ChatGPT</option>
             <option value="perplexity">Perplexity</option>
             <option value="googleAI">Google AI</option>
@@ -162,7 +162,7 @@ export default function CitationsTable({ citations }: CitationsTableProps) {
                 onClick={() => handleSort('provider')}
               >
                 <div className="flex items-center space-x-1">
-                  <span>Provider</span>
+                  <span>Platform</span>
                   <ArrowUpDown className="h-4 w-4" />
                 </div>
               </th>
@@ -227,16 +227,16 @@ export default function CitationsTable({ citations }: CitationsTableProps) {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {format(new Date(citation.timestamp), 'MMM d, yyyy')}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <div className="space-y-1">
+                <td className="px-6 py-4 text-sm">
+                  <div className="flex flex-col gap-1">
                     {citation.isBrandMention && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        Brand Mention
+                        Brand Mentioned
                       </span>
                     )}
                     {citation.isDomainCitation && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                        Domain Citation
+                        Domain Cited
                       </span>
                     )}
                   </div>

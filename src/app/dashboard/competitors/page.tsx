@@ -104,6 +104,10 @@ export default function CompetitorsPage(): React.ReactElement {
             <div>
               <h1 className="text-2xl font-bold text-foreground">Competitor Analysis</h1>
               <p className="text-muted-foreground">for {selectedBrand.companyName}</p>
+              <div className="flex items-center space-x-2 mt-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm text-blue-600 font-medium">Based on Latest Performance Data</span>
+              </div>
             </div>
           </div>
           <button
@@ -114,6 +118,19 @@ export default function CompetitorsPage(): React.ReactElement {
             <RefreshCw className={`h-4 w-4 ${competitorsLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
+        </div>
+
+        {/* Data Source Info Banner */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+            <div>
+              <h3 className="font-semibold text-blue-900">Latest Performance Data</h3>
+              <p className="text-sm text-blue-700">
+                Competitor data is sourced from your most recent processing session, providing up-to-date insights into competitive landscape analysis.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Competitor Analytics Processor */}
@@ -157,7 +174,7 @@ export default function CompetitorsPage(): React.ReactElement {
                 <div className="text-center">
                   <Users className="h-8 w-8 text-[#000C60] mx-auto mb-2" />
                   <p className="text-2xl font-bold text-foreground">{competitors.length}</p>
-                  <p className="text-muted-foreground text-sm">Competitors Detected</p>
+                  <p className="text-muted-foreground text-sm">Competitors Tracking</p>
                 </div>
               </Card>
               
@@ -167,7 +184,7 @@ export default function CompetitorsPage(): React.ReactElement {
                   <p className="text-2xl font-bold text-foreground">
                     {competitors.reduce((sum, comp) => sum + comp.mentions, 0)}
                   </p>
-                  <p className="text-muted-foreground text-sm">Total Mentions</p>
+                  <p className="text-muted-foreground text-sm">Total Competitor Mentions</p>
                 </div>
               </Card>
               

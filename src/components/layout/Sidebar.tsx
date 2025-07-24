@@ -28,7 +28,7 @@ import { useAuthContext } from '@/context/AuthContext';
 import WebLogo from '@/components/shared/WebLogo';
 
 const navigationItems = [
-      { name: 'Overview & Analytics', href: '/dashboard', icon: BarChart3 },
+      { name: 'Overview', href: '/dashboard', icon: BarChart3 },
       { name: 'Analytics', href: '/dashboard/analytics', icon: TrendingUp },
   { name: 'Competitors', href: '/dashboard/competitors', icon: Users },
   { name: 'Queries', href: '/dashboard/queries', icon: Search },

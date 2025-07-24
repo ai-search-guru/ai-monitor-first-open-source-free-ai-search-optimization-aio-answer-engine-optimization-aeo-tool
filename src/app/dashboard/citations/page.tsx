@@ -2,12 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useBrandContext } from '@/context/BrandContext';
-import { useBrandQueries } from '@/hooks/useBrandQueries';
+import { useLifetimeCitations } from '@/hooks/useLifetimeCitations';
+import { useBrandAnalyticsCombined } from '@/hooks/useBrandAnalytics';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Card from '@/components/shared/Card';
-import { extractChatGPTCitations } from '@/components/features/ChatGPTResponseRenderer';
-import { extractGoogleAIOverviewCitations } from '@/components/features/GoogleAIOverviewRenderer';
-import { extractPerplexityCitations } from '@/components/features/PerplexityResponseRenderer';
+// Citation extraction functions no longer needed - using lifetime data
 import WebLogo from '@/components/shared/WebLogo';
 import { 
   Quote, 
@@ -17,7 +16,6 @@ import {
   Download,
   RefreshCw,
   AlertCircle,
-  TrendingUp,
   Globe,
   BarChart3,
   Calendar,
@@ -92,46 +90,23 @@ const generateMockSEOData = (keywords: string) => {
   return { difficulty, volume };
 };
 
-// Helper functions
-const extractDomainFromUrl = (url: string): string | undefined => {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname.replace(/^www\./, '');
-  } catch (e) {
-    console.error('Invalid URL for domain extraction:', url, e);
-    return undefined;
-  }
-};
-
-const checkBrandMention = (text: string, url: string, brandName: string, brandDomain?: string): boolean => {
-  const textLower = text.toLowerCase();
-  const urlLower = url.toLowerCase();
-  const brandLower = brandName.toLowerCase();
-
-  if (textLower.includes(brandLower) || urlLower.includes(brandLower)) {
-    return true;
-  }
-
-  if (brandDomain) {
-    const domainWithoutTld = brandDomain.split('.')[0].toLowerCase();
-    if (textLower.includes(domainWithoutTld) || urlLower.includes(domainWithoutTld)) {
-      return true;
-    }
-  }
-  return false;
-};
-
-const checkDomainCitation = (url: string, brandDomain?: string): boolean => {
-  if (!brandDomain) return false;
-  const citationDomain = extractDomainFromUrl(url);
-  return citationDomain === brandDomain.replace(/^www\./, '');
-};
+// Helper functions no longer needed - using pre-processed lifetime citation data
 
 export default function CitationsPage(): React.ReactElement {
   const { selectedBrand, brands, loading: brandLoading } = useBrandContext();
-  const { queries, loading: queriesLoading, error: queriesError, refetch } = useBrandQueries({ 
+  const { 
+    citations: lifetimeCitations, 
+    loading: queriesLoading, 
+    error: queriesError, 
+    refetch,
+    stats: lifetimeStats 
+  } = useLifetimeCitations({ 
     brandId: selectedBrand?.id 
   });
+  
+  // Get analytics data to match dashboard calculations
+  // This ensures domain citations count matches between dashboard and citations pages
+  const { lifetimeAnalytics } = useBrandAnalyticsCombined(selectedBrand?.id);
   
   // State for filtering and sorting
   const [searchTerm, setSearchTerm] = useState('');
@@ -141,102 +116,17 @@ export default function CitationsPage(): React.ReactElement {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showBrandMentionsOnly, setShowBrandMentionsOnly] = useState(false);
 
-  // Extract all citations from queries
+  // Use lifetime citations from the hook
   const allCitations = useMemo(() => {
-    if (!queries || !selectedBrand) return [];
-
-    console.log('🔍 Citations page - processing queries:', {
-      queriesCount: queries.length,
-      selectedBrand: selectedBrand.companyName,
-      firstQuery: queries[0] ? {
-        query: queries[0].query,
-        hasResults: !!queries[0].results,
-        resultKeys: queries[0].results ? Object.keys(queries[0].results) : [],
-        chatgptResponse: queries[0].results?.chatgpt?.response?.substring(0, 100) + '...',
-        googleAIResponse: queries[0].results?.googleAI?.aiOverview?.substring(0, 100) + '...',
-        perplexityRawResponse: queries[0].results?.perplexity?.response?.substring(0, 100) + '...'
-      } : null
+    if (!lifetimeCitations || !selectedBrand) return [];
+    
+    console.log('🔍 Citations page - using lifetime citations:', {
+      citationsCount: lifetimeCitations.length,
+      selectedBrand: selectedBrand.companyName
     });
 
-    const citations: Citation[] = [];
-    let citationId = 1;
-
-    queries.forEach((query) => {
-      const queryTimestamp = query.date || new Date().toISOString();
-      
-      // Extract ChatGPT citations
-      if (query.results?.chatgpt?.response) {
-        const chatgptCitations = extractChatGPTCitations(query.results.chatgpt.response);
-        console.log('🔍 ChatGPT citations extracted:', chatgptCitations.length, 'for query:', query.query.substring(0, 50));
-        chatgptCitations.forEach((citation) => {
-          citations.push({
-            id: `chatgpt-${citationId++}`,
-            url: citation.url,
-            text: citation.text,
-            source: citation.source || 'ChatGPT',
-            provider: 'chatgpt',
-            query: query.query,
-            queryId: query.id || '',
-            brandName: selectedBrand.companyName,
-            domain: extractDomainFromUrl(citation.url),
-            timestamp: queryTimestamp,
-            type: 'text_extraction',
-            isBrandMention: checkBrandMention(citation.text, citation.url, selectedBrand.companyName, selectedBrand.domain),
-            isDomainCitation: checkDomainCitation(citation.url, selectedBrand.domain)
-          });
-        });
-      }
-
-      // Extract Google AI citations
-      if (query.results?.googleAI?.aiOverview) {
-        const googleCitations = extractGoogleAIOverviewCitations(query.results.googleAI.aiOverview, query.results.googleAI);
-        console.log('🔍 Google AI citations extracted:', googleCitations.length, 'for query:', query.query.substring(0, 50));
-        googleCitations.forEach((citation) => {
-          citations.push({
-            id: `google-${citationId++}`,
-            url: citation.url,
-            text: citation.text,
-            source: citation.source || 'Google AI Overview',
-            provider: 'googleAI',
-            query: query.query,
-            queryId: query.id || '',
-            brandName: selectedBrand.companyName,
-            domain: extractDomainFromUrl(citation.url),
-            timestamp: queryTimestamp,
-            type: 'ai_overview',
-            isBrandMention: checkBrandMention(citation.text, citation.url, selectedBrand.companyName, selectedBrand.domain),
-            isDomainCitation: checkDomainCitation(citation.url, selectedBrand.domain)
-          });
-        });
-      }
-
-      // Extract Perplexity citations
-      if (query.results?.perplexity?.response) {
-        const perplexityCitations = extractPerplexityCitations(query.results.perplexity.response, query.results.perplexity);
-        console.log('🔍 Perplexity citations extracted:', perplexityCitations.length, 'for query:', query.query.substring(0, 50));
-        perplexityCitations.forEach((citation) => {
-          citations.push({
-            id: `perplexity-${citationId++}`,
-            url: citation.url,
-            text: citation.text,
-            source: citation.source || 'Perplexity',
-            provider: 'perplexity',
-            query: query.query,
-            queryId: query.id || '',
-            brandName: selectedBrand.companyName,
-            domain: extractDomainFromUrl(citation.url),
-            timestamp: queryTimestamp,
-            type: citation.type || 'structured',
-            isBrandMention: checkBrandMention(citation.text, citation.url, selectedBrand.companyName, selectedBrand.domain),
-            isDomainCitation: checkDomainCitation(citation.url, selectedBrand.domain)
-          });
-        });
-      }
-    });
-
-    console.log('🔍 Total citations extracted:', citations.length);
-    return citations;
-  }, [queries, selectedBrand]);
+    return lifetimeCitations;
+  }, [lifetimeCitations, selectedBrand]);
 
   // Filter and sort citations
   const filteredAndSortedCitations = useMemo(() => {
@@ -254,7 +144,7 @@ export default function CitationsPage(): React.ReactElement {
       );
     }
 
-    // Apply provider filter
+    // Apply platform filter
     if (selectedProvider !== 'all') {
       filtered = filtered.filter(citation => citation.provider === selectedProvider);
     }
@@ -299,19 +189,23 @@ export default function CitationsPage(): React.ReactElement {
 
   // Analytics calculations
   const analytics = useMemo(() => {
-    const totalCitations = allCitations.length;
-    const brandMentions = allCitations.filter(c => c.isBrandMention).length;
-    const domainCitations = allCitations.filter(c => c.isDomainCitation).length;
-    const uniqueDomains = new Set(allCitations.map(c => c.domain).filter(Boolean)).size;
+    // Filter out google.com for consistency with all-domains page (for display only)
+    const analyticsCitations = allCitations.filter(c => c.domain !== 'google.com');
+    
+    // Use analytics data to match dashboard calculations for both total and domain citations
+    const totalCitations = lifetimeAnalytics?.totalCitations || analyticsCitations.length;
+    const domainCitations = lifetimeAnalytics?.totalDomainCitations || 
+      analyticsCitations.filter(c => c.isDomainCitation).length;
+    const uniqueDomains = new Set(analyticsCitations.map(c => c.domain)).size;
     
     const providerStats = {
-      chatgpt: allCitations.filter(c => c.provider === 'chatgpt').length,
-      perplexity: allCitations.filter(c => c.provider === 'perplexity').length,
-      googleAI: allCitations.filter(c => c.provider === 'googleAI').length
+      chatgpt: analyticsCitations.filter(c => c.provider === 'chatgpt').length,
+      perplexity: analyticsCitations.filter(c => c.provider === 'perplexity').length,
+      googleAI: analyticsCitations.filter(c => c.provider === 'googleAI').length
     };
 
     const topDomains = Object.entries(
-      allCitations.reduce((acc, citation) => {
+      analyticsCitations.reduce((acc, citation) => {
         if (citation.domain) {
           acc[citation.domain] = (acc[citation.domain] || 0) + 1;
         }
@@ -332,16 +226,14 @@ export default function CitationsPage(): React.ReactElement {
 
     return {
       totalCitations,
-      brandMentions,
       domainCitations,
       uniqueDomains,
       providerStats,
       topDomains,
       topSources,
-      brandMentionRate: totalCitations > 0 ? (brandMentions / totalCitations * 100) : 0,
       domainCitationRate: totalCitations > 0 ? (domainCitations / totalCitations * 100) : 0
     };
-  }, [allCitations]);
+  }, [allCitations, lifetimeAnalytics]);
 
   // Handle sorting
   const handleSort = (field: SortField) => {
@@ -356,7 +248,7 @@ export default function CitationsPage(): React.ReactElement {
   // Export citations
   const handleExport = () => {
     const csvContent = [
-      ['Query', 'Provider', 'Source', 'Citation Text', 'URL', 'Domain', 'Brand Mention', 'Domain Citation', 'Timestamp'].join(','),
+              ['Query', 'Platform', 'Source', 'Citation Text', 'URL', 'Domain', 'Brand Mention', 'Domain Citation', 'Timestamp'].join(','),
       ...filteredAndSortedCitations.map(citation => [
         `"${citation.query.replace(/"/g, '""')}"`,
         citation.provider,
@@ -478,8 +370,8 @@ export default function CitationsPage(): React.ReactElement {
         </div>
 
         {/* Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <Card className="p-4 flex-1">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Quote className="h-5 w-5 text-blue-600" />
@@ -491,20 +383,7 @@ export default function CitationsPage(): React.ReactElement {
             </div>
           </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Brand Mentions</p>
-                <p className="text-2xl font-bold text-foreground">{analytics.brandMentions}</p>
-                <p className="text-xs text-green-600">{analytics.brandMentionRate.toFixed(1)}% of total</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4">
+          <Card className="p-4 flex-1">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-purple-100 rounded-lg">
                 <Globe className="h-5 w-5 text-purple-600" />
@@ -517,7 +396,7 @@ export default function CitationsPage(): React.ReactElement {
             </div>
           </Card>
 
-          <Card className="p-4">
+          <Card className="p-4 flex-1">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-orange-100 rounded-lg">
                 <BarChart3 className="h-5 w-5 text-orange-600" />
@@ -530,10 +409,10 @@ export default function CitationsPage(): React.ReactElement {
           </Card>
         </div>
 
-        {/* Provider Statistics and Most Cited Domains */}
+        {/* Platform Statistics and Most Cited Domains */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <Card className="p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Provider Distribution</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">Platform Distribution</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">ChatGPT</span>
@@ -602,7 +481,7 @@ export default function CitationsPage(): React.ReactElement {
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-foreground">All Citations</h3>
             <div className="text-sm text-muted-foreground">
-              Total: {allCitations.length} citations
+              Total: {analytics.totalCitations} citations
             </div>
           </div>
           <CitationsTable citations={allCitations} />

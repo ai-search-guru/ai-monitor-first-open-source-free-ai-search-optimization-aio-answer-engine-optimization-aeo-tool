@@ -3,6 +3,7 @@ import { AuthContextProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { BrandContextProvider } from '@/context/BrandContext';
 import { ToastProvider } from '@/context/ToastContext';
+import { QueryProvider } from '@/providers/QueryProvider';
 import { Inter } from 'next/font/google';
 import './globals.css';
 
@@ -26,15 +27,17 @@ export default function RootLayout( { children }: { children: React.ReactNode } 
       */}
       <head />
       <body className={`${inter.className} antialiased`} suppressHydrationWarning>
-        <ThemeProvider>
-          <AuthContextProvider>
-            <BrandContextProvider>
-              <ToastProvider>
-              {children}
-              </ToastProvider>
-            </BrandContextProvider>
-          </AuthContextProvider>
-        </ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider>
+            <AuthContextProvider>
+              <BrandContextProvider>
+                <ToastProvider>
+                {children}
+                </ToastProvider>
+              </BrandContextProvider>
+            </AuthContextProvider>
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

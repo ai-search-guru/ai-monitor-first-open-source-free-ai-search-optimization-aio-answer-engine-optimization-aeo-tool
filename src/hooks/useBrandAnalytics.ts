@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   getLatestBrandAnalytics, 
   getBrandAnalyticsHistory, 
@@ -12,183 +13,138 @@ import {
   type LifetimeBrandAnalytics
 } from '@/firebase/firestore/brandAnalytics';
 
-// Hook for getting latest brand analytics (session-based) - now using same data source as lifetime
+// Hook for getting latest brand analytics (session-based) - optimized with React Query
 export function useLatestBrandAnalytics(brandId: string | undefined) {
-  const [analytics, setAnalytics] = useState<BrandAnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  return useQuery({
+    queryKey: ['latestBrandAnalytics', brandId],
+    queryFn: async () => {
+      if (!brandId) return null;
 
-  useEffect(() => {
-    async function fetchAnalytics() {
-      if (!brandId) {
-        setAnalytics(null);
-      setLoading(false);
-      return;
-    }
+      // Use the same data source as lifetime analytics for consistency and speed
+      const { result: lifetimeResult, error: lifetimeError } = await calculateLifetimeBrandAnalytics(brandId);
+      
+      if (lifetimeError) {
+        throw new Error('Failed to fetch analytics');
+      }
 
-      try {
-    setLoading(true);
-    setError(null);
+      if (!lifetimeResult) {
+        return null;
+      }
 
-        // Use the same data source as lifetime analytics for consistency and speed
-        const { result: lifetimeResult, error: lifetimeError } = await calculateLifetimeBrandAnalytics(brandId);
+      // Extract latest session data from the lifetime calculation
+      const { result: latestSessionAnalytics } = await calculateLatestSessionFromBrandDocument(brandId);
+      
+      if (latestSessionAnalytics) {
+        // Save the calculated analytics to Firestore for persistence (fire and forget)
+        try {
+          const { saveBrandAnalytics } = await import('@/firebase/firestore/brandAnalytics');
+          saveBrandAnalytics(latestSessionAnalytics).catch(console.warn);
+        } catch {
+          // Ignore save errors, we have the data
+        }
         
-        if (lifetimeError) {
-          setError('Failed to fetch analytics');
-          console.error('Analytics fetch error:', lifetimeError);
-          setAnalytics(null);
-          return;
-        }
-
-        if (!lifetimeResult) {
-          setAnalytics(null);
-          return;
-        }
-
-        // Extract latest session data from the lifetime calculation
-        // We'll get the latest session by finding the most recent processingSessionId
-        const { result: latestSessionAnalytics } = await calculateLatestSessionFromBrandDocument(brandId);
-        
-        if (latestSessionAnalytics) {
-          // Save the calculated analytics to Firestore for persistence
-          try {
-            const { saveBrandAnalytics } = await import('@/firebase/firestore/brandAnalytics');
-            const { success, error: saveError } = await saveBrandAnalytics(latestSessionAnalytics);
-            
-            if (success) {
-              console.log('✅ Unified analytics saved to Firestore for persistence:', {
-                brandId: latestSessionAnalytics.brandId,
-                sessionId: latestSessionAnalytics.processingSessionId,
-                totalBrandMentions: latestSessionAnalytics.totalBrandMentions
-              });
-            } else {
-              console.warn('⚠️ Failed to save unified analytics:', saveError);
-              // Continue anyway, as we have the calculated data
-            }
-          } catch (saveError) {
-            console.warn('⚠️ Error saving unified analytics:', saveError);
-            // Continue anyway, as we have the calculated data
-          }
-          
-          setAnalytics(latestSessionAnalytics);
-        } else {
-          // Fallback: convert lifetime to session format if no distinct session found
-          const sessionAnalytics: BrandAnalyticsData = {
-            id: undefined,
-            userId: lifetimeResult.userId,
-            brandId: lifetimeResult.brandId,
-            brandName: lifetimeResult.brandName,
-            brandDomain: lifetimeResult.brandDomain,
-            processingSessionId: 'latest_session',
-            processingSessionTimestamp: new Date().toISOString(),
-            totalQueriesProcessed: lifetimeResult.totalQueriesProcessed,
-            totalBrandMentions: lifetimeResult.totalBrandMentions,
-            brandVisibilityScore: lifetimeResult.brandVisibilityScore,
-            totalCitations: lifetimeResult.totalCitations,
-            totalDomainCitations: lifetimeResult.totalDomainCitations,
-            providerStats: lifetimeResult.providerStats,
-            insights: {
-              ...lifetimeResult.insights,
-              brandVisibilityTrend: 'stable' as const,
-              competitorMentionsDetected: 0
-            },
-            lastUpdated: lifetimeResult.calculatedAt,
-            createdAt: lifetimeResult.calculatedAt
-          };
-          setAnalytics(sessionAnalytics);
-        }
-    } catch (err) {
-        setError('Failed to fetch analytics');
-        console.error('Analytics error:', err);
-        setAnalytics(null);
-    } finally {
-      setLoading(false);
-    }
-    }
-
-    fetchAnalytics();
-  }, [brandId]);
-
-  return { analytics, loading, error };
+        return latestSessionAnalytics;
+      } else {
+        // Fallback: convert lifetime to session format if no distinct session found
+        const sessionAnalytics: BrandAnalyticsData = {
+          id: undefined,
+          userId: lifetimeResult.userId,
+          brandId: lifetimeResult.brandId,
+          brandName: lifetimeResult.brandName,
+          brandDomain: lifetimeResult.brandDomain,
+          processingSessionId: 'latest_session',
+          processingSessionTimestamp: new Date().toISOString(),
+          totalQueriesProcessed: lifetimeResult.totalQueriesProcessed,
+          totalBrandMentions: lifetimeResult.totalBrandMentions,
+          brandVisibilityScore: lifetimeResult.brandVisibilityScore,
+          totalCitations: lifetimeResult.totalCitations,
+          totalDomainCitations: lifetimeResult.totalDomainCitations,
+          providerStats: lifetimeResult.providerStats,
+          insights: {
+            ...lifetimeResult.insights,
+            brandVisibilityTrend: 'stable' as const,
+            competitorMentionsDetected: 0
+          },
+          lastUpdated: lifetimeResult.calculatedAt,
+          createdAt: lifetimeResult.calculatedAt
+        };
+        return sessionAnalytics;
+      }
+    },
+    enabled: !!brandId,
+    staleTime: 3 * 60 * 1000, // Consider data fresh for 3 minutes
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: false,
+  });
 }
 
-// Hook for getting lifetime brand analytics (all historical data)
+// Hook for getting lifetime brand analytics (all historical data) - optimized with React Query
 export function useLifetimeBrandAnalytics(brandId: string | undefined) {
-  const [lifetimeAnalytics, setLifetimeAnalytics] = useState<LifetimeBrandAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  return useQuery({
+    queryKey: ['lifetimeBrandAnalytics', brandId],
+    queryFn: async () => {
+      if (!brandId) return null;
 
-  useEffect(() => {
-    async function fetchLifetimeAnalytics() {
-      if (!brandId) {
-        setLifetimeAnalytics(null);
-        setLoading(false);
-        return;
+      const { result, error: fetchError } = await calculateLifetimeBrandAnalytics(brandId);
+      
+      if (fetchError) {
+        throw new Error('Failed to calculate lifetime analytics');
       }
 
-      try {
-        setLoading(true);
-        setError(null);
+      if (result) {
+        // Only save analytics periodically to avoid write stream exhaustion
+        // Check if we need to save (save every 5 minutes max)
+        const now = Date.now();
+        const lastSave = localStorage.getItem(`lastAnalyticsSave_${brandId}`);
+        const shouldSave = !lastSave || (now - parseInt(lastSave)) > 5 * 60 * 1000; // 5 minutes
         
-        const { result, error: fetchError } = await calculateLifetimeBrandAnalytics(brandId);
-        
-        if (fetchError) {
-          setError('Failed to calculate lifetime analytics');
-          console.error('Lifetime analytics error:', fetchError);
-        } else {
-          if (result) {
-            // Save the calculated lifetime analytics to Firestore for persistence
-            try {
-              const { saveLifetimeAnalytics } = await import('@/firebase/firestore/brandAnalytics');
-              const { success, error: saveError } = await saveLifetimeAnalytics(result);
-              
-              if (success) {
-                console.log('✅ Lifetime analytics saved to Firestore for historical tracking:', {
-                  brandId: result.brandId,
-                  totalQueries: result.totalQueriesProcessed,
-                  totalSessions: result.totalProcessingSessions
-                });
-              } else {
-                console.warn('⚠️ Failed to save lifetime analytics:', saveError);
-                // Continue anyway, as we have the calculated data
-              }
-            } catch (saveError) {
-              console.warn('⚠️ Error saving lifetime analytics:', saveError);
-              // Continue anyway, as we have the calculated data
-            }
+        if (shouldSave) {
+          // Save the calculated lifetime analytics to Firestore for persistence (fire and forget)
+          try {
+            const { saveLifetimeAnalytics } = await import('@/firebase/firestore/brandAnalytics');
+            saveLifetimeAnalytics(result).then(() => {
+              localStorage.setItem(`lastAnalyticsSave_${brandId}`, now.toString());
+            }).catch(error => {
+              console.warn('⚠️ Failed to save lifetime analytics:', error);
+            });
+          } catch {
+            // Ignore save errors, we have the data
           }
-          
-          setLifetimeAnalytics(result || null);
+        } else {
+          console.log('⏭️ Skipping analytics save (last saved recently)');
         }
-      } catch (err) {
-        setError('Failed to calculate lifetime analytics');
-        console.error('Lifetime analytics error:', err);
-      } finally {
-        setLoading(false);
       }
-    }
-
-    fetchLifetimeAnalytics();
-  }, [brandId]);
-
-  return { lifetimeAnalytics, loading, error };
+      
+      return result || null;
+    },
+    enabled: !!brandId,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes (lifetime data changes less frequently)
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    refetchOnWindowFocus: false,
+  });
 }
 
-// Combined hook for getting both latest and lifetime analytics
+// Combined hook for getting both latest and lifetime analytics - optimized with React Query
 export function useBrandAnalyticsCombined(brandId: string | undefined) {
-  const { analytics: latestAnalytics, loading: latestLoading, error: latestError } = useLatestBrandAnalytics(brandId);
-  const { lifetimeAnalytics, loading: lifetimeLoading, error: lifetimeError } = useLifetimeBrandAnalytics(brandId);
+  const latestQuery = useLatestBrandAnalytics(brandId);
+  const lifetimeQuery = useLifetimeBrandAnalytics(brandId);
 
-  const loading = latestLoading || lifetimeLoading;
-  const error = latestError || lifetimeError;
+  const loading = latestQuery.isLoading || lifetimeQuery.isLoading;
+  const error = latestQuery.error?.message || lifetimeQuery.error?.message || null;
 
   return {
-    latestAnalytics,
-    lifetimeAnalytics,
+    latestAnalytics: latestQuery.data || null,
+    lifetimeAnalytics: lifetimeQuery.data || null,
     loading,
     error,
-    hasLatestData: !!latestAnalytics,
-    hasLifetimeData: !!lifetimeAnalytics
+    hasLatestData: !!latestQuery.data,
+    hasLifetimeData: !!lifetimeQuery.data,
+    // Expose refetch functions for manual refresh
+    refetchLatest: latestQuery.refetch,
+    refetchLifetime: lifetimeQuery.refetch,
+    // Expose individual query states for more granular control
+    latestQuery,
+    lifetimeQuery
   };
 }
 
