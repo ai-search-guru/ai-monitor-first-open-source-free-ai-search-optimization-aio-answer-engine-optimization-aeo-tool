@@ -1,7 +1,7 @@
 'use client'
-import React from 'react';
+import React, { useState } from 'react';
 import { BrandAnalyticsData, LifetimeBrandAnalytics } from '@/firebase/firestore/brandAnalytics';
-import { TrendingUp, TrendingDown, Minus, Circle, Award, Eye, Link, MessageSquare, Calendar, Clock, BarChart3 } from 'lucide-react';
+import { Award, Eye, Link, MessageSquare, Calendar, Clock, BarChart3 } from 'lucide-react';
 
 interface BrandAnalyticsDisplayProps {
   latestAnalytics?: BrandAnalyticsData | null;
@@ -16,6 +16,13 @@ export default function BrandAnalyticsDisplay({
   showDetails = true, 
   className = '' 
 }: BrandAnalyticsDisplayProps): React.ReactElement {
+  const [activeTab, setActiveTab] = useState<'latest' | 'lifetime'>(() => {
+    // Default to the view that has data, prefer lifetime if both exist
+    if (latestAnalytics && lifetimeAnalytics) return 'lifetime';
+    if (lifetimeAnalytics) return 'lifetime';
+    if (latestAnalytics) return 'latest';
+    return 'lifetime';
+  });
   
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'Unknown';
@@ -33,16 +40,9 @@ export default function BrandAnalyticsDisplay({
     });
   };
 
-  const getTrendIcon = (trend: 'improving' | 'declining' | 'stable') => {
-    switch (trend) {
-      case 'improving':
-        return <TrendingUp className="w-4 h-4 text-green-600" />;
-      case 'declining':
-        return <TrendingDown className="w-4 h-4 text-red-600" />;
-      default:
-        return <Circle className="w-4 h-4 text-green-600 fill-current" />;
-    }
-  };
+
+
+
 
   const getProviderIcon = (provider: string) => {
     switch (provider) {
@@ -72,229 +72,201 @@ export default function BrandAnalyticsDisplay({
     }
   };
 
-  // Helper function to render analytics section
   const renderAnalyticsSection = (
     analytics: BrandAnalyticsData | LifetimeBrandAnalytics,
     title: string,
-    icon: React.ReactNode,
-    isLifetime: boolean = false
-  ) => (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100">
+    indicator: React.ReactNode,
+    isLifetime: boolean
+  ) => {
+    return (
+      <div className="space-y-6">
+        {/* Header with title and indicator */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            {icon}
+            {indicator}
             <span className="text-sm font-semibold text-gray-700">{title}</span>
           </div>
-          {!isLifetime && latestAnalytics && (
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              {getTrendIcon(latestAnalytics.insights?.brandVisibilityTrend ?? 'stable')}
-              <span className="capitalize">
-                {latestAnalytics.insights?.brandVisibilityTrend === 'stable' ? 'Connection Stable' : latestAnalytics.insights?.brandVisibilityTrend ?? 'Connection Stable'}
-              </span>
-            </div>
-          )}
-        </div>
+          <div className="flex items-center space-x-2 text-sm text-gray-500">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            <span>Monitoring Enabled</span>
+          </div>
       </div>
 
-      <div className="p-6">
-        {/* Main Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
-            <div className="flex items-center space-x-2 mb-2">
-              <MessageSquare className="w-5 h-5 text-blue-600" />
-              <span className="text-sm text-blue-600 font-medium">Brand Mentions</span>
-            </div>
-            <div className="text-2xl font-bold text-blue-700">{analytics.totalBrandMentions}</div>
-            <div className="text-xs text-blue-600 mt-1">
-              Avg: {analytics.insights.averageBrandMentionsPerQuery} per query
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
-            <div className="flex items-center space-x-2 mb-2">
-              <Eye className="w-5 h-5 text-green-600" />
-              <span className="text-sm text-green-600 font-medium">Brand Visibility</span>
-            </div>
-            <div className="text-2xl font-bold text-green-700">{analytics.brandVisibilityScore}%</div>
-            <div className="text-xs text-green-600 mt-1">
-              {analytics.totalQueriesProcessed} queries{isLifetime && 'totalProcessingSessions' in analytics && `, ${analytics.totalProcessingSessions} sessions`}
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
-            <div className="flex items-center space-x-2 mb-2">
-              <Link className="w-5 h-5 text-purple-600" />
-              <span className="text-sm text-purple-600 font-medium">Citations</span>
-            </div>
-            <div className="text-2xl font-bold text-purple-700">{analytics.totalCitations}</div>
-            <div className="text-xs text-purple-600 mt-1">
-              Avg: {analytics.insights.averageCitationsPerQuery} per query
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
-            <div className="flex items-center space-x-2 mb-2">
-              <Award className="w-5 h-5 text-orange-600" />
-              <span className="text-sm text-orange-600 font-medium">
-                Top Provider{analytics.insights.topProviders && analytics.insights.topProviders.length > 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              {analytics.insights.topPerformingProvider === 'none' ? (
-                // No meaningful performance to rank
-                <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center">
-                    <span className="text-xs text-gray-600">?</span>
-                  </div>
-                  <span className="text-sm font-semibold text-gray-600">None</span>
-                </div>
-              ) : analytics.insights.topProviders && analytics.insights.topProviders.length > 1 ? (
-                // Multiple top providers (tied)
-                <div className="flex items-center space-x-1">
-                  {analytics.insights.topProviders.map((provider, index) => (
-                    <div key={provider} className="flex items-center space-x-1">
-                      {getProviderIcon(provider)}
-                      {index < analytics.insights.topProviders.length - 1 && (
-                        <span className="text-orange-600 font-medium">&</span>
-                      )}
+        {/* Metrics Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* AIM Visibility Score - Now First */}
+          <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-1">
+                  <p className="text-green-600 text-xs font-medium">AIM Visibility Score</p>
+                  <div className="relative group">
+                    <div className="w-3 h-3 rounded-full bg-green-400 text-white text-xs flex items-center justify-center cursor-help">
+                      ?
                     </div>
-                  ))}
+                    <div className="absolute top-full right-0 sm:left-1/2 sm:transform sm:-translate-x-1/2 mt-2 w-72 sm:w-80 p-4 bg-white border border-gray-200 text-gray-900 text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[9999]">
+                      <div className="font-semibold mb-2 text-gray-800">Reflects how often and prominently your brand appears in AI-generated content.</div>
+                      
+                      <div className="space-y-2">
+                        <div>
+                          <span className="font-medium text-purple-600">Multiple Discount:</span> <span className="text-gray-700">Repeated mentions in the same response are weighted less</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-orange-600">Order of Appearance:</span> <span className="text-gray-700">Tracks brand position (first, middle, last)</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-green-600">Brand Recognition:</span> <span className="text-gray-700">Measures consistency of mentions</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-blue-600">Market Awareness:</span> <span className="text-gray-700">Higher scores = stronger presence</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-indigo-600">Platform Coverage:</span> <span className="text-gray-700">Evaluates visibility across major AI platforms</span>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3 pt-2 border-t border-gray-200">
+                        <div className="font-semibold mb-1 text-gray-800">How to Benchmark Your Brand's Performance?</div>
+                        <div className="space-y-1">
+                          <div><span className="font-medium text-green-600">High (70–100%):</span> <span className="text-gray-700">Strong brand presence</span></div>
+                          <div><span className="font-medium text-yellow-600">Medium (30–69%):</span> <span className="text-gray-700">Mixed recognition</span></div>
+                          <div><span className="font-medium text-red-600">Low (0–29%):</span> <span className="text-gray-700">Limited awareness</span></div>
+                        </div>
+                      </div>
+                      
+                      {/* Tooltip arrow */}
+                      <div className="absolute bottom-full right-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-white"></div>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                // Single top provider
-                <>
-                  {getProviderIcon(analytics.insights.topPerformingProvider)}
-                  <span className="text-sm font-semibold text-orange-700 capitalize">
-                    {analytics.insights.topPerformingProvider}
-                  </span>
-                </>
-              )}
+                <p className="text-green-900 text-lg font-bold">{analytics.brandVisibilityScore}%</p>
+              </div>
+              <Eye className="h-5 w-5 text-green-600" />
             </div>
-            {analytics.insights.topPerformingProvider === 'none' ? (
-              <div className="text-xs text-gray-600 mt-1">
-                No brand mentions or domain citations found
+          </div>
+
+          {/* Brand Mentions - Now Second */}
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-600 text-xs font-medium">Brand Mentions</p>
+                <p className="text-blue-900 text-lg font-bold">{analytics.totalBrandMentions}</p>
               </div>
-            ) : analytics.insights.topProviders && analytics.insights.topProviders.length > 1 ? (
-              <div className="text-xs text-orange-600 mt-1">
-                Tied performance
+              <MessageSquare className="h-5 w-5 text-blue-600" />
+            </div>
+          </div>
+
+          {/* Domain Citations - Now Third */}
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-orange-600 text-xs font-medium">Domain Citations</p>
+                <p className="text-orange-900 text-lg font-bold">{analytics.totalDomainCitations}</p>
               </div>
-            ) : null}
+              <Award className="h-5 w-5 text-orange-600" />
+              </div>
+          </div>
+
+          {/* Total Citations - Now Fourth */}
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-600 text-xs font-medium">Total Citations</p>
+                <p className="text-purple-900 text-lg font-bold">{analytics.totalCitations}</p>
+            </div>
+              <Link className="h-5 w-5 text-purple-600" />
+            </div>
           </div>
         </div>
 
         {showDetails && (
           <>
-            {/* Provider Breakdown */}
-            <div className="mb-6">
+            {/* Provider Performance */}
+            <div className="bg-gray-50 p-4 rounded-xl">
               <h4 className="text-sm font-semibold text-gray-700 mb-3">Provider Performance</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {Object.entries(analytics.providerStats).map(([provider, stats]) => {
-                  const rankingDetails = analytics.insights.providerRankingDetails?.[provider];
-                  const isTopProvider = analytics.insights.topPerformingProvider !== 'none' && analytics.insights.topProviders?.includes(provider);
-                  
-                  return (
-                    <div key={provider} className={`p-4 rounded-lg border ${isTopProvider ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
-                      <div className="flex items-center space-x-2 mb-3">
-                        {getProviderIcon(provider)}
-                        <span className="font-medium text-gray-700 capitalize">{provider}</span>
-                        {isTopProvider && (
-                          <Award className="w-4 h-4 text-orange-500" title="Top Performer" />
-                        )}
-                        {rankingDetails && analytics.insights.topPerformingProvider !== 'none' && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                            #{rankingDetails.rank}
-                          </span>
-                        )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {Object.entries(analytics.providerStats).map(([provider, stats]) => (
+                  <div key={provider} className="bg-white p-3 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-600 capitalize">{provider}</span>
+                      <span className="text-xs text-gray-500">{stats.queriesProcessed} queries</span>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-500">Mentions:</span>
+                        <span className="text-xs font-medium">{stats.brandMentions}</span>
                       </div>
-                      <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Queries:</span>
-                          <span className="font-medium">{stats.queriesProcessed}</span>
+                        <span className="text-xs text-gray-500">Citations:</span>
+                        <span className="text-xs font-medium">{stats.citations}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Brand Mentions:</span>
-                          <span className="font-medium">{stats.brandMentions}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Citations:</span>
-                          <span className="font-medium">{stats.citations}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Domain Citations:</span>
-                          <span className="font-medium">{stats.domainCitations}</span>
-                        </div>
-                        {rankingDetails && analytics.insights.topPerformingProvider !== 'none' && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Domain Ratio:</span>
-                            <span className="font-medium">{rankingDetails.domainCitationsRatio}%</span>
-                          </div>
-                        )}
-                        {stats.averageResponseTime && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Avg Response:</span>
-                            <span className="font-medium">{Math.round(stats.averageResponseTime)}ms</span>
-                          </div>
-                        )}
+                        <span className="text-xs text-gray-500">Domain:</span>
+                        <span className="text-xs font-medium">{stats.domainCitations}</span>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
+                        </div>
+                        </div>
+
+            {/* Additional Insights */}
+            <div className="bg-gray-50 p-4 rounded-xl">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Insights</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                        <div className="flex justify-between">
+                    <span className="text-xs text-gray-500">Queries Processed:</span>
+                    <span className="text-xs font-medium">{analytics.totalQueriesProcessed}</span>
+                        </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-xs text-gray-500">Avg Mentions/Query:</span>
+                    <span className="text-xs font-medium">{analytics.insights.averageBrandMentionsPerQuery}</span>
+                  </div>
+                          <div className="flex justify-between">
+                    <span className="text-xs text-gray-500">Avg Citations/Query:</span>
+                    <span className="text-xs font-medium">{analytics.insights.averageCitationsPerQuery}</span>
+                  </div>
+                          </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-xs text-gray-500">Top Provider:</span>
+                    <span className="text-xs font-medium capitalize">{analytics.insights.topPerformingProvider}</span>
+                      </div>
+                  {analytics.insights.topProviders && analytics.insights.topProviders.length > 1 && (
+                    <div className="flex justify-between">
+                      <span className="text-xs text-gray-500">All Top Providers:</span>
+                      <span className="text-xs font-medium capitalize">{analytics.insights.topProviders.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Session/Lifetime Info */}
+            {/* Lifetime Info (only show for lifetime analytics) */}
+            {isLifetime && 'firstQueryProcessed' in analytics && (
             <div className="pt-4 border-t border-gray-100">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600">
-                {isLifetime && 'firstQueryProcessed' in analytics ? (
-                  <>
                     <div>
                       <span className="font-medium">First Query:</span> {analytics.firstQueryProcessed ? formatDate(analytics.firstQueryProcessed) : 'Unknown'}
                     </div>
                     <div className="mt-2 sm:mt-0">
-                      <span className="font-medium">Last Query:</span> {analytics.lastQueryProcessed ? formatDate(analytics.lastQueryProcessed) : 'Unknown'}
+                      <span className="font-medium">Last Query:</span> {'lastQueryProcessed' in analytics && analytics.lastQueryProcessed ? formatDate(analytics.lastQueryProcessed) : 'Unknown'}
                     </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <span className="font-medium">Last Updated:</span> {formatDate(analytics.lastUpdated)}
                     </div>
-                    <div className="mt-2 sm:mt-0">
-                      <span className="font-medium">Session:</span> {'processingSessionId' in analytics && analytics.processingSessionId ? analytics.processingSessionId.slice(-8) : 'Unknown'}
-                    </div>
-                  </>
-                )}
               </div>
-            </div>
+            )}
           </>
         )}
-      </div>
     </div>
   );
+  };
 
+  // If no data available
+  if (!latestAnalytics && !lifetimeAnalytics) {
   return (
-    <div className={className}>
-      {/* Latest Performance Section */}
-      {latestAnalytics && renderAnalyticsSection(
-        latestAnalytics,
-        "Latest Performance",
-        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>,
-        false
-      )}
-
-      {/* Lifetime Analytics Section */}
-      {lifetimeAnalytics && renderAnalyticsSection(
-        lifetimeAnalytics,
-        "Lifetime Analytics",
-        <div className="w-2 h-2 bg-green-500 rounded-full"></div>,
-        true
-      )}
-
-      {/* No Data State */}
-      {!latestAnalytics && !lifetimeAnalytics && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div className={`bg-white rounded-xl border border-gray-200 shadow-sm ${className}`}>
           <div className="p-6">
             <div className="text-center py-8">
               <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
@@ -305,7 +277,69 @@ export default function BrandAnalyticsDisplay({
             </div>
           </div>
         </div>
-      )}
+    );
+  }
+
+  return (
+    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm ${className}`}>
+      <div className="p-6">
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6">
+          {lifetimeAnalytics && (
+            <button
+              onClick={() => setActiveTab('lifetime')}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                activeTab === 'lifetime'
+                  ? 'bg-white text-[#000C60] shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>*Lifetime Analytics (Based on Queries: {lifetimeAnalytics.totalQueriesProcessed})</span>
+              </div>
+            </button>
+          )}
+          {latestAnalytics && (
+            <button
+              onClick={() => setActiveTab('latest')}
+              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                activeTab === 'latest'
+                  ? 'bg-white text-[#000C60] shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span>Latest Performance (Based on Queries: {latestAnalytics.totalQueriesProcessed})</span>
+              </div>
+            </button>
+          )}
+        </div>
+
+        {/* Tab Content */}
+        <div className="min-h-0">
+          {activeTab === 'latest' && latestAnalytics && renderAnalyticsSection(
+            latestAnalytics,
+            `Latest Performance (Based on Queries: ${latestAnalytics.totalQueriesProcessed})`,
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>,
+            false
+          )}
+          {activeTab === 'lifetime' && lifetimeAnalytics && (
+            <>
+              {renderAnalyticsSection(
+                lifetimeAnalytics,
+                `*Lifetime Analytics (Based on Queries: ${lifetimeAnalytics.totalQueriesProcessed})`,
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>,
+                true
+              )}
+              <div className="mt-2 text-xs text-gray-500">
+                *While setting up the brand, queries are processed twice to weed out outliers
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 } 

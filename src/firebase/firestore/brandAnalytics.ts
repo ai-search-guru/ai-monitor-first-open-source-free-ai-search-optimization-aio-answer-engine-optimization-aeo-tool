@@ -304,22 +304,22 @@ export function calculateCumulativeAnalytics(
     }
   }
 
-  // Calculate average response times
+  // Calculate average response times (Firebase doesn't allow undefined values)
   const finalProviderStats = {
     chatgpt: {
       ...providerStats.chatgpt,
       averageResponseTime: providerStats.chatgpt.queriesProcessed > 0 ? 
-        providerStats.chatgpt.totalResponseTime / providerStats.chatgpt.queriesProcessed : undefined
+        providerStats.chatgpt.totalResponseTime / providerStats.chatgpt.queriesProcessed : null
     },
     google: {
       ...providerStats.google,
       averageResponseTime: providerStats.google.queriesProcessed > 0 ? 
-        providerStats.google.totalResponseTime / providerStats.google.queriesProcessed : undefined
+        providerStats.google.totalResponseTime / providerStats.google.queriesProcessed : null
     },
     perplexity: {
       ...providerStats.perplexity,
       averageResponseTime: providerStats.perplexity.queriesProcessed > 0 ? 
-        providerStats.perplexity.totalResponseTime / providerStats.perplexity.queriesProcessed : undefined
+        providerStats.perplexity.totalResponseTime / providerStats.perplexity.queriesProcessed : null
     }
   };
 
@@ -379,6 +379,151 @@ export function calculateCumulativeAnalytics(
     lastUpdated: serverTimestamp(),
     createdAt: serverTimestamp()
   };
+}
+
+// Calculate latest session analytics from brand document (unified data source)
+export async function calculateLatestSessionFromBrandDocument(
+  brandId: string
+): Promise<{ result?: BrandAnalyticsData; error?: any }> {
+  try {
+    console.log('🔄 Calculating latest session analytics from brand document:', brandId);
+    
+    // Get brand information (same source as lifetime analytics)
+    let brand = await getBrandInfo(brandId);
+    if (!brand) {
+      return { error: 'Brand not found' };
+    }
+    
+    // If the brand document has storage references, retrieve full data from Cloud Storage
+    if ((brand as any).storageReferences?.queryProcessingResults) {
+      console.log('📥 Brand has Cloud Storage references, retrieving full query results for session analytics...');
+      try {
+        const { document: fullBrandData } = await retrieveDocumentWithLargeData(
+          'v8userbrands', 
+          brandId, 
+          ['queryProcessingResults']
+        );
+        
+        if (fullBrandData?.queryProcessingResults) {
+          brand.queryProcessingResults = fullBrandData.queryProcessingResults;
+          console.log(`✅ Retrieved ${fullBrandData.queryProcessingResults.length} query results from Cloud Storage for session analytics`);
+        }
+      } catch (storageError) {
+        console.warn('⚠️ Failed to retrieve query results from Cloud Storage for session analytics:', storageError);
+        // Continue with truncated data from Firestore
+      }
+    }
+    
+    const brandName = brand.companyName;
+    const brandDomain = brand.domain;
+    const userId = brand.userId;
+    
+    // Collect all query results from brand document
+    let allQueryResults: any[] = [];
+    
+    // 1. Get results from brand document
+    if (brand.queryProcessingResults && brand.queryProcessingResults.length > 0) {
+      allQueryResults = [...brand.queryProcessingResults];
+    }
+    
+    // 2. Try to get additional results from v8userqueries collection (fault-tolerant)
+    try {
+      const historicalQueriesResult = await getQueriesByBrand(brandId);
+      if (historicalQueriesResult.result) {
+        // Convert historical query format to current format (with safe property access)
+        const convertedResults = historicalQueriesResult.result
+          .filter((q: any) => q.status === 'completed' && q.aiResponses && q.aiResponses.length > 0)
+          .map((query: any) => ({
+            date: query.updatedAt || query.createdAt || new Date().toISOString(),
+            processingSessionId: query.sessionId || 'legacy_session',
+            processingSessionTimestamp: query.updatedAt || query.createdAt || new Date().toISOString(),
+            query: query.userQuery || query.queryText || 'Unknown query',
+            keyword: query.keyword || 'unknown',
+            category: query.category || 'unknown',
+            results: {
+              // Convert legacy format to current format with safe access
+              ...(query.aiResponses?.find((r: any) => r.provider === 'openai') && {
+                chatgpt: {
+                  response: query.aiResponses.find((r: any) => r.provider === 'openai')?.response || '',
+                  timestamp: query.aiResponses.find((r: any) => r.provider === 'openai')?.timestamp || query.updatedAt,
+                  responseTime: query.aiResponses.find((r: any) => r.provider === 'openai')?.responseTime
+                }
+              }),
+              ...(query.aiResponses?.find((r: any) => r.provider === 'gemini') && {
+                googleAI: {
+                  aiOverview: query.aiResponses.find((r: any) => r.provider === 'gemini')?.response || '',
+                  timestamp: query.aiResponses.find((r: any) => r.provider === 'gemini')?.timestamp || query.updatedAt,
+                  responseTime: query.aiResponses.find((r: any) => r.provider === 'gemini')?.responseTime
+                }
+              })
+            }
+          }));
+        
+        allQueryResults.push(...convertedResults);
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not fetch historical queries for latest session (fault-tolerant):', error);
+      // Continue without historical data
+    }
+    
+    if (allQueryResults.length === 0) {
+      return { result: undefined };
+    }
+    
+    // Group queries by processing session and find the latest session
+    const sessionGroups: { [sessionId: string]: any[] } = {};
+    let latestSessionId = '';
+    let latestSessionTimestamp = '';
+    
+    allQueryResults.forEach(query => {
+      const sessionId = query.processingSessionId || 'unknown_session';
+      const sessionTimestamp = query.processingSessionTimestamp || query.date || '';
+      
+      if (!sessionGroups[sessionId]) {
+        sessionGroups[sessionId] = [];
+      }
+      sessionGroups[sessionId].push(query);
+      
+      // Track the latest session
+      if (sessionTimestamp > latestSessionTimestamp) {
+        latestSessionTimestamp = sessionTimestamp;
+        latestSessionId = sessionId;
+      }
+    });
+    
+    // Get queries from the latest session only
+    const latestSessionQueries = sessionGroups[latestSessionId] || [];
+    
+    if (latestSessionQueries.length === 0) {
+      return { result: undefined };
+    }
+    
+    console.log(`📊 Found latest session: ${latestSessionId} with ${latestSessionQueries.length} queries`);
+    
+    // Calculate analytics for the latest session only
+    const sessionAnalytics = calculateCumulativeAnalytics(
+      userId,
+      brandId,
+      brandName,
+      brandDomain,
+      latestSessionId,
+      latestSessionTimestamp,
+      latestSessionQueries
+    );
+    
+    console.log('✅ Latest session analytics calculated:', {
+      sessionId: latestSessionId,
+      totalQueries: latestSessionQueries.length,
+      totalBrandMentions: sessionAnalytics.totalBrandMentions,
+      topProvider: sessionAnalytics.insights.topPerformingProvider
+    });
+    
+    return { result: sessionAnalytics };
+    
+  } catch (error) {
+    console.error('❌ Error calculating latest session analytics from brand document:', error);
+    return { error };
+  }
 }
 
 // Calculate lifetime analytics across ALL historical queries for a brand
@@ -540,8 +685,8 @@ export async function calculateLifetimeBrandAnalytics(
       .filter(date => !isNaN(date.getTime()))
       .sort((a, b) => a.getTime() - b.getTime());
     
-    const firstQueryProcessed = queryDates.length > 0 ? queryDates[0].toISOString() : undefined;
-    const lastQueryProcessed = queryDates.length > 0 ? queryDates[queryDates.length - 1].toISOString() : undefined;
+    const firstQueryProcessed = queryDates.length > 0 ? queryDates[0].toISOString() : null;
+    const lastQueryProcessed = queryDates.length > 0 ? queryDates[queryDates.length - 1].toISOString() : null;
     
     // Convert to lifetime analytics format
     const lifetimeAnalytics: LifetimeBrandAnalytics = {
@@ -593,6 +738,28 @@ export async function saveBrandAnalytics(analyticsData: BrandAnalyticsData): Pro
     return { success: true };
   } catch (error) {
     console.error('❌ Error saving brand analytics:', error);
+    return { success: false, error };
+  }
+}
+
+// Save lifetime analytics to Firestore for historical tracking
+export async function saveLifetimeAnalytics(analyticsData: LifetimeBrandAnalytics): Promise<{ success: boolean; error?: any }> {
+  try {
+    // Create a unique document ID based on brand and timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const documentId = `${analyticsData.brandId}_lifetime_${timestamp}`;
+    
+    const docRef = doc(db, 'v8_lifetime_brand_analytics', documentId);
+    await setDoc(docRef, {
+      ...analyticsData,
+      createdAt: serverTimestamp(),
+      documentType: 'lifetime_analytics'
+    });
+    
+    console.log('✅ Lifetime analytics saved to Firestore:', docRef.id);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error saving lifetime analytics:', error);
     return { success: false, error };
   }
 }
