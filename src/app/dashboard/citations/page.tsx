@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useBrandContext } from '@/context/BrandContext';
 import { useLifetimeCitations } from '@/hooks/useLifetimeCitations';
 import { useBrandAnalyticsCombined } from '@/hooks/useBrandAnalytics';
+import { useTotalCitations } from '@/hooks/useTotalCitations';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Card from '@/components/shared/Card';
 // Citation extraction functions no longer needed - using lifetime data
@@ -108,6 +109,9 @@ export default function CitationsPage(): React.ReactElement {
   // This ensures domain citations count matches between dashboard and citations pages
   const { lifetimeAnalytics } = useBrandAnalyticsCombined(selectedBrand?.id);
   
+  // Get total citations count using the same hook as dashboard
+  const { totalCitations: totalCitationsFromHook } = useTotalCitations({ brandId: selectedBrand?.id });
+  
   // State for filtering and sorting
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
@@ -189,13 +193,12 @@ export default function CitationsPage(): React.ReactElement {
 
   // Analytics calculations
   const analytics = useMemo(() => {
-    // Filter out google.com for consistency with all-domains page (for display only)
-    const analyticsCitations = allCitations.filter(c => c.domain !== 'google.com');
+    // Use all citations with valid domains (consistent with lifetime analytics calculation)
+    const analyticsCitations = allCitations.filter(c => c.domain); // Only include citations with valid domains
     
-    // Use analytics data to match dashboard calculations for both total and domain citations
-    const totalCitations = lifetimeAnalytics?.totalCitations || analyticsCitations.length;
-    const domainCitations = lifetimeAnalytics?.totalDomainCitations || 
-      analyticsCitations.filter(c => c.isDomainCitation).length;
+    // Use actual citations array for consistent counts with table
+    const totalCitations = analyticsCitations.length;
+    const domainCitations = analyticsCitations.filter(c => c.isDomainCitation).length;
     const uniqueDomains = new Set(analyticsCitations.map(c => c.domain)).size;
     
     const providerStats = {
@@ -216,7 +219,7 @@ export default function CitationsPage(): React.ReactElement {
     .slice(0, 10);
 
     const topSources = Object.entries(
-      allCitations.reduce((acc, citation) => {
+      analyticsCitations.reduce((acc, citation) => {
         acc[citation.source] = (acc[citation.source] || 0) + 1;
         return acc;
       }, {} as Record<string, number>)
@@ -481,10 +484,10 @@ export default function CitationsPage(): React.ReactElement {
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-foreground">All Citations</h3>
             <div className="text-sm text-muted-foreground">
-              Total: {analytics.totalCitations} citations
+              Total: {totalCitationsFromHook} citations
             </div>
           </div>
-          <CitationsTable citations={allCitations} />
+          <CitationsTable citations={allCitations.filter(c => c.domain)} />
         </Card>
       </div>
     </DashboardLayout>

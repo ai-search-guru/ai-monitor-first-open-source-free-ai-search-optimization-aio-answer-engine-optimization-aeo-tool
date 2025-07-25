@@ -60,7 +60,7 @@ export function useLifetimeCitations(options: UseLifetimeCitationsOptions = {}):
       const analyticsQuery = query(
         collection(db, 'v8_lifetime_brand_analytics'),
         where('brandId', '==', brandId),
-        orderBy('createdAt', 'desc'),
+        orderBy('calculatedAt', 'desc'),
         limit(1)
       );
       
@@ -73,8 +73,42 @@ export function useLifetimeCitations(options: UseLifetimeCitationsOptions = {}):
         return;
       }
       
-      const latestAnalytics = analyticsSnapshot.docs[0].data() as LifetimeBrandAnalytics;
+      let latestAnalytics = analyticsSnapshot.docs[0].data() as LifetimeBrandAnalytics;
       console.log('✅ Found lifetime analytics with', latestAnalytics.allCitations?.length || 0, 'citations');
+      
+      // Check if data is stored in Cloud Storage and retrieve full data
+      if ((latestAnalytics as any).storedInCloudStorage && (latestAnalytics as any).storageRef && (!latestAnalytics.allCitations || latestAnalytics.allCitations.length === 0)) {
+        try {
+          console.log('🔍 Analytics data stored in Cloud Storage, retrieving full dataset...');
+          const { retrieveLargeData } = await import('@/firebase/storage/cloudStorage');
+          
+          // Create storage reference object for direct retrieval
+          const storageRef = {
+            storageId: (latestAnalytics as any).storageRef,
+            storagePath: (latestAnalytics as any).storageRef,
+            downloadUrl: '', // Will be generated during retrieval
+            size: 0,
+            contentType: 'application/json',
+            uploadedAt: null
+          };
+          
+          const { data: fullAnalyticsData, error: storageError } = await retrieveLargeData(storageRef);
+          
+          if (storageError) {
+            throw storageError;
+          }
+          
+          if (fullAnalyticsData?.allCitations) {
+            latestAnalytics.allCitations = fullAnalyticsData.allCitations;
+            console.log(`✅ Retrieved ${fullAnalyticsData.allCitations.length} citations from Cloud Storage`);
+          } else {
+            console.warn('⚠️ No citations found in Cloud Storage, using Firestore data');
+          }
+        } catch (storageError) {
+          console.warn('⚠️ Failed to retrieve full analytics from Cloud Storage:', storageError);
+          console.log('📋 Using limited Firestore data with', latestAnalytics.allCitations?.length || 0, 'citations');
+        }
+      }
       
       setAnalytics(latestAnalytics);
       setCitations(latestAnalytics.allCitations || []);

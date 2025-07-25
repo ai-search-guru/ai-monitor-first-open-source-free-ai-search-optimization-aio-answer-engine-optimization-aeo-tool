@@ -330,17 +330,17 @@ export function calculateCumulativeAnalytics(
     chatgpt: {
       ...providerStats.chatgpt,
       averageResponseTime: providerStats.chatgpt.queriesProcessed > 0 ? 
-        providerStats.chatgpt.totalResponseTime / providerStats.chatgpt.queriesProcessed : null
+        providerStats.chatgpt.totalResponseTime / providerStats.chatgpt.queriesProcessed : undefined
     },
     google: {
       ...providerStats.google,
       averageResponseTime: providerStats.google.queriesProcessed > 0 ? 
-        providerStats.google.totalResponseTime / providerStats.google.queriesProcessed : null
+        providerStats.google.totalResponseTime / providerStats.google.queriesProcessed : undefined
     },
     perplexity: {
       ...providerStats.perplexity,
       averageResponseTime: providerStats.perplexity.queriesProcessed > 0 ? 
-        providerStats.perplexity.totalResponseTime / providerStats.perplexity.queriesProcessed : null
+        providerStats.perplexity.totalResponseTime / providerStats.perplexity.queriesProcessed : undefined
     }
   };
 
@@ -641,8 +641,9 @@ export async function calculateLifetimeBrandAnalytics(
         console.log(`📚 Found ${historicalQueriesResult.result.length} historical queries in v8userqueries collection`);
         
         // Log the status breakdown for diagnostic purposes
-        const statusCounts = historicalQueriesResult.result.reduce((acc, q) => {
-          acc[q.status || 'unknown'] = (acc[q.status || 'unknown'] || 0) + 1;
+        const statusCounts = historicalQueriesResult.result.reduce((acc: Record<string, number>, q: any) => {
+          const status = q.status || 'unknown';
+          acc[status] = (acc[status] || 0) + 1;
           return acc;
         }, {});
         console.log('📊 Historical query status breakdown:', statusCounts);
@@ -720,25 +721,25 @@ export async function calculateLifetimeBrandAnalytics(
     }, {});
     console.log('🔍 Query source breakdown:', querySourceBreakdown);
     
-    // Run diagnostics if debug mode is enabled or if we have potential issues
-    const shouldRunDiagnostics = typeof window !== 'undefined' && 
-      (localStorage.getItem(`analyticsDebug_${brandId}`) === 'true' || allQueryResults.length <= 50);
+    // Analytics debug functionality removed - no longer needed
+    // const shouldRunDiagnostics = typeof window !== 'undefined' && 
+    //   (localStorage.getItem(`analyticsDebug_${brandId}`) === 'true' || allQueryResults.length <= 50);
     
-    if (shouldRunDiagnostics) {
-      try {
-        const { diagnoseAnalyticsIssues, logAnalyticsDiagnostic } = await import('@/utils/analyticsDebug');
-        const diagnostic = diagnoseAnalyticsIssues(
-          brandId,
-          allQueryResults,
-          !!(brand as any).storageReferences?.queryProcessingResults,
-          brand.queryProcessingResults && brand.queryProcessingResults.length > (brand as any)._originalFirestoreQueryCount || 0,
-          undefined // We'd need to pass storage errors from the retry logic above
-        );
-        logAnalyticsDiagnostic(diagnostic);
-      } catch (debugError) {
-        console.warn('⚠️ Could not run analytics diagnostics:', debugError);
-      }
-    }
+    // if (shouldRunDiagnostics) {
+    //   try {
+    //     const { diagnoseAnalyticsIssues, logAnalyticsDiagnostic } = await import('@/utils/analyticsDebug');
+    //     const diagnostic = diagnoseAnalyticsIssues(
+    //       brandId,
+    //       allQueryResults,
+    //       !!(brand as any).storageReferences?.queryProcessingResults,
+    //       brand.queryProcessingResults && brand.queryProcessingResults.length > (brand as any)._originalFirestoreQueryCount || 0,
+    //       undefined // We'd need to pass storage errors from the retry logic above
+    //     );
+    //     logAnalyticsDiagnostic(diagnostic);
+    //   } catch (debugError) {
+    //     console.warn('⚠️ Could not run analytics diagnostics:', debugError);
+    //   }
+    // }
     
     if (allQueryResults.length === 0) {
       // Return empty analytics if no queries found
@@ -754,6 +755,7 @@ export async function calculateLifetimeBrandAnalytics(
           brandVisibilityScore: 0,
           totalCitations: 0,
           totalDomainCitations: 0,
+          allCitations: [], // Add required field
           providerStats: {
             chatgpt: { queriesProcessed: 0, brandMentions: 0, citations: 0, domainCitations: 0 },
             google: { queriesProcessed: 0, brandMentions: 0, citations: 0, domainCitations: 0 },
@@ -787,8 +789,8 @@ export async function calculateLifetimeBrandAnalytics(
       .filter(date => !isNaN(date.getTime()))
       .sort((a, b) => a.getTime() - b.getTime());
     
-    const firstQueryProcessed = queryDates.length > 0 ? queryDates[0].toISOString() : null;
-    const lastQueryProcessed = queryDates.length > 0 ? queryDates[queryDates.length - 1].toISOString() : null;
+    const firstQueryProcessed = queryDates.length > 0 ? queryDates[0].toISOString() : undefined;
+    const lastQueryProcessed = queryDates.length > 0 ? queryDates[queryDates.length - 1].toISOString() : undefined;
     
     // Helper functions for citation extraction
     const extractDomainFromUrl = (url: string): string | undefined => {
@@ -813,9 +815,19 @@ export async function calculateLifetimeBrandAnalytics(
       const lowerUrl = url.toLowerCase();
       const lowerDomain = brandDomain.toLowerCase();
       
-      // Check for "https://www." + domain specifically
-      const httpsWwwDomain = `https://www.${lowerDomain}`;
-      return lowerUrl.includes(httpsWwwDomain);
+      // First check for exact match "https://www." + domain + "/"
+      const httpsWwwDomain = `https://www.${lowerDomain}/`;
+      if (lowerUrl.startsWith(httpsWwwDomain)) {
+        return true;
+      }
+      
+      // If first condition fails, check for exact match "https://" + domain + "/" (without www)
+      const httpsDomain = `https://${lowerDomain}/`;
+      if (lowerUrl.startsWith(httpsDomain)) {
+        return true;
+      }
+      
+      return false;
     };
     
     // Extract all individual citations from historical queries
@@ -834,7 +846,7 @@ export async function calculateLifetimeBrandAnalytics(
           
           chatgptCitations.forEach((citation: any) => {
             const domain = extractDomainFromUrl(citation.url);
-            if (!domain || domain === 'google.com') return; // Skip google.com and invalid domains
+            if (!domain) return; // Skip invalid domains only
             
             allCitations.push({
               id: `lifetime-chatgpt-${citationId++}`,
@@ -866,7 +878,7 @@ export async function calculateLifetimeBrandAnalytics(
           
           googleCitations.forEach((citation: any) => {
             const domain = extractDomainFromUrl(citation.url);
-            if (!domain || domain === 'google.com') return; // Skip google.com and invalid domains
+            if (!domain) return; // Skip invalid domains only
             
             allCitations.push({
               id: `lifetime-google-${citationId++}`,
@@ -898,7 +910,7 @@ export async function calculateLifetimeBrandAnalytics(
           
           perplexityCitations.forEach((citation: any) => {
             const domain = extractDomainFromUrl(citation.url);
-            if (!domain || domain === 'google.com') return; // Skip google.com and invalid domains
+            if (!domain) return; // Skip invalid domains only
             
             allCitations.push({
               id: `lifetime-perplexity-${citationId++}`,
@@ -987,16 +999,14 @@ export async function saveLifetimeAnalytics(analyticsData: LifetimeBrandAnalytic
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const documentId = `${analyticsData.brandId}_lifetime_${timestamp}`;
     
-    // Create a copy without large arrays to prevent write stream exhaustion
-    const analyticsDataForFirestore = {
+    // Create a copy for Firestore with potential data optimization
+    const analyticsDataForFirestore: any = {
       ...analyticsData,
-      // Remove or limit large arrays that can cause write stream exhaustion
-      allCitations: analyticsData.allCitations?.slice(0, 100) || [], // Limit to first 100 citations
       createdAt: serverTimestamp(),
       documentType: 'lifetime_analytics',
-      // Add metadata about data truncation
-      dataTruncated: analyticsData.allCitations && analyticsData.allCitations.length > 100,
-      originalCitationCount: analyticsData.allCitations?.length || 0
+      originalCitationCount: analyticsData.allCitations?.length || 0,
+      dataTruncated: false,
+      storedInCloudStorage: false
     };
     
     // Check if the data is still too large and needs Cloud Storage
@@ -1018,22 +1028,42 @@ export async function saveLifetimeAnalytics(analyticsData: LifetimeBrandAnalytic
       );
       
       if (storageError) {
-        console.warn('⚠️ Failed to store analytics in Cloud Storage, saving truncated version to Firestore');
+        console.warn('⚠️ Failed to store analytics in Cloud Storage, truncating citations for Firestore');
+        // Only truncate if Cloud Storage fails
+        analyticsDataForFirestore.allCitations = analyticsData.allCitations?.slice(0, 100) || [];
+        analyticsDataForFirestore.dataTruncated = true;
+        analyticsDataForFirestore.truncationReason = 'cloud_storage_failed';
       } else {
-        // Save only a reference and summary in Firestore
-        analyticsDataForFirestore.storageRef = storageRef?.fullPath;
+        // Successfully stored in Cloud Storage - save only a reference and summary in Firestore
+        if (storageRef?.storagePath) {
+          analyticsDataForFirestore.storageRef = storageRef.storagePath;
+        }
         analyticsDataForFirestore.allCitations = []; // Remove citations from Firestore document
+        analyticsDataForFirestore.dataTruncated = false;
+        analyticsDataForFirestore.storedInCloudStorage = true;
+        console.log(`✅ Full analytics data with ${analyticsData.allCitations?.length || 0} citations stored in Cloud Storage`);
       }
+    } else {
+      // Data fits in Firestore, keep all citations
+      analyticsDataForFirestore.dataTruncated = false;
+      analyticsDataForFirestore.storedInCloudStorage = false;
+      console.log(`✅ Analytics data with ${analyticsData.allCitations?.length || 0} citations stored directly in Firestore`);
     }
     
+    // Remove undefined fields before saving to Firebase
+    const cleanedData = Object.fromEntries(
+      Object.entries(analyticsDataForFirestore).filter(([_, value]) => value !== undefined)
+    );
+
     const docRef = doc(db, 'v8_lifetime_brand_analytics', documentId);
-    await setDoc(docRef, analyticsDataForFirestore);
+    await setDoc(docRef, cleanedData);
     
     console.log('✅ Lifetime analytics saved to Firestore:', {
       documentId: docRef.id,
       citationCount: analyticsData.allCitations?.length || 0,
-      dataTruncated: analyticsDataForFirestore.dataTruncated,
-      usedCloudStorage: !!analyticsDataForFirestore.storageRef
+      dataTruncated: cleanedData.dataTruncated,
+      usedCloudStorage: cleanedData.storedInCloudStorage,
+      storageRef: cleanedData.storageRef
     });
     
     return { success: true };
@@ -1041,7 +1071,7 @@ export async function saveLifetimeAnalytics(analyticsData: LifetimeBrandAnalytic
     console.error('❌ Error saving lifetime analytics:', error);
     
     // If it's a write stream exhaustion error, try saving with minimal data
-    if (error.code === 'resource-exhausted' || error.message?.includes('Write stream exhausted')) {
+    if ((error as any)?.code === 'resource-exhausted' || (error as any)?.message?.includes('Write stream exhausted')) {
       console.log('🔄 Retrying with minimal analytics data due to write stream exhaustion...');
       
       try {
@@ -1064,11 +1094,13 @@ export async function saveLifetimeAnalytics(analyticsData: LifetimeBrandAnalytic
           createdAt: serverTimestamp(),
           documentType: 'lifetime_analytics',
           dataTruncated: true,
+          storedInCloudStorage: false,
           originalCitationCount: analyticsData.allCitations?.length || 0,
-          errorReason: 'write_stream_exhausted'
+          truncationReason: 'write_stream_exhausted'
         };
         
-        const docRef = doc(db, 'v8_lifetime_brand_analytics', `${analyticsData.brandId}_lifetime_minimal_${timestamp}`);
+        const minimalTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const docRef = doc(db, 'v8_lifetime_brand_analytics', `${analyticsData.brandId}_lifetime_minimal_${minimalTimestamp}`);
         await setDoc(docRef, minimalAnalytics);
         
         console.log('✅ Minimal lifetime analytics saved after write stream exhaustion');

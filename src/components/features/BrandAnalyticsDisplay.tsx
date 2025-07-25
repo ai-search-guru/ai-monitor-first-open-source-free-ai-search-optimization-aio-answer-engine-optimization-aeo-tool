@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useMemo, useCallback } from 'react';
 import { BrandAnalyticsData, LifetimeBrandAnalytics } from '@/firebase/firestore/brandAnalytics';
-import { Award, Eye, Link, MessageSquare, Calendar, Clock, BarChart3 } from 'lucide-react';
+import { Award, Eye, MessageSquare, Calendar, Clock, BarChart3 } from 'lucide-react';
 
 interface BrandAnalyticsDisplayProps {
   latestAnalytics?: BrandAnalyticsData | null;
@@ -12,7 +12,7 @@ interface BrandAnalyticsDisplayProps {
 
 const BrandAnalyticsDisplay = React.memo<BrandAnalyticsDisplayProps>(({ 
   latestAnalytics,
-  lifetimeAnalytics, 
+  lifetimeAnalytics,
   showDetails = true, 
   className = '' 
 }) => {
@@ -120,7 +120,7 @@ const BrandAnalyticsDisplay = React.memo<BrandAnalyticsDisplayProps>(({
       </div>
 
         {/* Metrics Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* AIM Visibility Score - Now First */}
           <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
             <div className="flex items-center justify-between">
@@ -192,17 +192,6 @@ const BrandAnalyticsDisplay = React.memo<BrandAnalyticsDisplayProps>(({
               </div>
               <Award className="h-5 w-5 text-orange-600" />
               </div>
-          </div>
-
-          {/* Total Citations - Now Fourth */}
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-600 text-xs font-medium">Total Citations</p>
-                <p className="text-purple-900 text-lg font-bold">{analytics.totalCitations}</p>
-            </div>
-              <Link className="h-5 w-5 text-purple-600" />
-            </div>
           </div>
         </div>
 

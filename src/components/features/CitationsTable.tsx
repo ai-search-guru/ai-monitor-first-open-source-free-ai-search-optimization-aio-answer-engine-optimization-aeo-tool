@@ -39,13 +39,20 @@ export default function CitationsTable({ citations }: CitationsTableProps) {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
+  const [filterBrandMention, setFilterBrandMention] = useState(false);
+  const [filterDomainCitation, setFilterDomainCitation] = useState(false);
 
   // Filter citations
   const filteredCitations = citations.filter(citation => {
     if (selectedProvider !== 'all' && citation.provider !== selectedProvider) {
       return false;
     }
-    
+    if (filterBrandMention && !citation.isBrandMention) {
+      return false;
+    }
+    if (filterDomainCitation && !citation.isDomainCitation) {
+      return false;
+    }
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       return (
@@ -56,7 +63,6 @@ export default function CitationsTable({ citations }: CitationsTableProps) {
         citation.domain?.toLowerCase().includes(term)
       );
     }
-    
     return true;
   });
 
@@ -116,6 +122,26 @@ export default function CitationsTable({ citations }: CitationsTableProps) {
             <option value="perplexity">Perplexity</option>
             <option value="googleAI">Google AI</option>
           </select>
+          {/* Brand Mentioned Filter */}
+          <label className="flex items-center space-x-1 text-sm">
+            <input
+              type="checkbox"
+              checked={filterBrandMention}
+              onChange={e => setFilterBrandMention(e.target.checked)}
+              className="accent-yellow-500"
+            />
+            <span>Brand Mentioned</span>
+          </label>
+          {/* Domain Cited Filter */}
+          <label className="flex items-center space-x-1 text-sm">
+            <input
+              type="checkbox"
+              checked={filterDomainCitation}
+              onChange={e => setFilterDomainCitation(e.target.checked)}
+              className="accent-indigo-500"
+            />
+            <span>Domain Cited</span>
+          </label>
         </div>
 
         {/* Items per page */}
