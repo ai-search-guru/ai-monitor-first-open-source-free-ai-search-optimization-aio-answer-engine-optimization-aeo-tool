@@ -1215,6 +1215,7 @@ export default function QueriesContent(): React.ReactElement {
   const [showResults, setShowResults] = useState(false);
   const [selectedQuery, setSelectedQuery] = useState<any>(null);
   
+  
   // Add Query Modal State
   const [showAddQueryModal, setShowAddQueryModal] = useState(false);
   const [newQuery, setNewQuery] = useState('');

@@ -61,10 +61,13 @@ function isDomainCited(text: string, brandDomain: string): boolean {
   if (!text || !brandDomain) return false;
   const lowerText = text.toLowerCase();
   const lowerDomain = brandDomain.toLowerCase();
-  
-  // Check for "https://www." + domain specifically
+  // Check for "https://www." + domain first
   const httpsWwwDomain = `https://www.${lowerDomain}`;
-  return lowerText.includes(httpsWwwDomain);
+  if (lowerText.includes(httpsWwwDomain)) return true;
+  // If not found, check for "https://" + domain
+  const httpsDomain = `https://${lowerDomain}`;
+  if (lowerText.includes(httpsDomain)) return true;
+  return false;
 }
 
 // Function to count brand mentions in text
@@ -81,13 +84,13 @@ function countBrandMentions(text: string, brandName: string): number {
 function countDomainCitations(citations: Citation[], brandDomain: string): number {
   if (!brandDomain) return 0;
   const lowerDomain = brandDomain.toLowerCase();
-  
-  // Check for "https://www." + domain specifically
   const httpsWwwDomain = `https://www.${lowerDomain}`;
-  
+  const httpsDomain = `https://${lowerDomain}`;
   return citations.filter(citation => {
     const lowerUrl = citation.url.toLowerCase();
-    return lowerUrl.includes(httpsWwwDomain);
+    if (lowerUrl.includes(httpsWwwDomain)) return true;
+    if (lowerUrl.includes(httpsDomain)) return true;
+    return false;
   }).length;
 }
 

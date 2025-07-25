@@ -1,20 +1,22 @@
 'use client'
 import React, { useState, useMemo, useCallback } from 'react';
 import { BrandAnalyticsData, LifetimeBrandAnalytics } from '@/firebase/firestore/brandAnalytics';
-import { Award, Eye, MessageSquare, Calendar, Clock, BarChart3 } from 'lucide-react';
+import { Award, Eye, MessageSquare, Calendar, Clock, BarChart3, Quote, Globe } from 'lucide-react';
 
 interface BrandAnalyticsDisplayProps {
   latestAnalytics?: BrandAnalyticsData | null;
   lifetimeAnalytics?: LifetimeBrandAnalytics | null;
   showDetails?: boolean;
   className?: string;
+  citationAnalytics?: any; // For citation overview cards
 }
 
 const BrandAnalyticsDisplay = React.memo<BrandAnalyticsDisplayProps>(({ 
   latestAnalytics,
   lifetimeAnalytics,
   showDetails = true, 
-  className = '' 
+  className = '',
+  citationAnalytics
 }) => {
   const [activeTab, setActiveTab] = useState<'latest' | 'lifetime'>(() => {
     // Default to the view that has data, prefer lifetime if both exist
@@ -103,7 +105,8 @@ const BrandAnalyticsDisplay = React.memo<BrandAnalyticsDisplayProps>(({
     analytics: BrandAnalyticsData | LifetimeBrandAnalytics,
     title: string,
     indicator: React.ReactNode,
-    isLifetime: boolean
+    isLifetime: boolean,
+    citationData?: any
   ) => {
     return (
       <div className="space-y-6">
@@ -119,81 +122,60 @@ const BrandAnalyticsDisplay = React.memo<BrandAnalyticsDisplayProps>(({
           </div>
       </div>
 
-        {/* Metrics Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* AIM Visibility Score - Now First */}
-          <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-1">
-                  <p className="text-green-600 text-xs font-medium">AIM Visibility Score</p>
-                  <div className="relative group">
-                    <div className="w-3 h-3 rounded-full bg-green-400 text-white text-xs flex items-center justify-center cursor-help">
-                      ?
-                    </div>
-                    <div className="absolute top-full right-0 sm:left-1/2 sm:transform sm:-translate-x-1/2 mt-2 w-72 sm:w-80 p-4 bg-white border border-gray-200 text-gray-900 text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[9999]">
-                      <div className="font-semibold mb-2 text-gray-800">Reflects how often and prominently your brand appears in AI-generated content.</div>
-                      
-                      <div className="space-y-2">
-                        <div>
-                          <span className="font-medium text-purple-600">Multiple Discount:</span> <span className="text-gray-700">Repeated mentions in the same response are weighted less</span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-orange-600">Order of Appearance:</span> <span className="text-gray-700">Tracks brand position (first, middle, last)</span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-green-600">Brand Recognition:</span> <span className="text-gray-700">Measures consistency of mentions</span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-blue-600">Market Awareness:</span> <span className="text-gray-700">Higher scores = stronger presence</span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-indigo-600">Platform Coverage:</span> <span className="text-gray-700">Evaluates visibility across major AI platforms</span>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-3 pt-2 border-t border-gray-200">
-                        <div className="font-semibold mb-1 text-gray-800">How to Benchmark Your Brand's Performance?</div>
-                        <div className="space-y-1">
-                          <div><span className="font-medium text-green-600">High (70–100%):</span> <span className="text-gray-700">Strong brand presence</span></div>
-                          <div><span className="font-medium text-yellow-600">Medium (30–69%):</span> <span className="text-gray-700">Mixed recognition</span></div>
-                          <div><span className="font-medium text-red-600">Low (0–29%):</span> <span className="text-gray-700">Limited awareness</span></div>
-                        </div>
-                      </div>
-                      
-                      {/* Tooltip arrow */}
-                      <div className="absolute bottom-full right-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-white"></div>
-                    </div>
-                  </div>
+        {/* Citation Cards for Lifetime Analytics Only */}
+        {isLifetime && citationData && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Quote className="h-4 w-4 text-blue-600" />
                 </div>
-                <p className="text-green-900 text-lg font-bold">{analytics.brandVisibilityScore}%</p>
+                <div>
+                  <p className="text-blue-600 text-xs font-medium">Total Citations</p>
+                  <p className="text-blue-900 text-lg font-bold">{citationData.totalCitations}</p>
+                </div>
               </div>
-              <Eye className="h-5 w-5 text-green-600" />
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Globe className="h-4 w-4 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-purple-600 text-xs font-medium">Domain Citations</p>
+                  <p className="text-purple-900 text-lg font-bold">{citationData.domainCitations}</p>
+                  <p className="text-purple-600 text-xs">{citationData.domainCitationRate.toFixed(1)}% of total</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-xl border border-yellow-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <MessageSquare className="h-4 w-4 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-yellow-600 text-xs font-medium">Brand Mentions</p>
+                  <p className="text-yellow-900 text-lg font-bold">{citationData.brandMentions}</p>
+                  <p className="text-yellow-600 text-xs">{citationData.brandMentionRate.toFixed(1)}% of total</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <BarChart3 className="h-4 w-4 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-orange-600 text-xs font-medium">Unique Domains</p>
+                  <p className="text-orange-900 text-lg font-bold">{citationData.uniqueDomains}</p>
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* Brand Mentions - Now Second */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-600 text-xs font-medium">Brand Mentions</p>
-                <p className="text-blue-900 text-lg font-bold">{analytics.totalBrandMentions}</p>
-              </div>
-              <MessageSquare className="h-5 w-5 text-blue-600" />
-            </div>
-          </div>
-
-          {/* Domain Citations - Now Third */}
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-orange-600 text-xs font-medium">Domain Citations</p>
-                <p className="text-orange-900 text-lg font-bold">{analytics.totalDomainCitations}</p>
-              </div>
-              <Award className="h-5 w-5 text-orange-600" />
-              </div>
-          </div>
-        </div>
+        )}
 
         {showDetails && (
           <>
@@ -347,7 +329,8 @@ const BrandAnalyticsDisplay = React.memo<BrandAnalyticsDisplayProps>(({
                 lifetimeAnalytics,
                 `*Lifetime Analytics (Based on Queries: ${lifetimeAnalytics.totalQueriesProcessed})`,
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>,
-                true
+                true,
+                citationAnalytics
               )}
               <div className="mt-2 text-xs text-gray-500">
                 *While setting up the brand, queries are processed twice to weed out outliers

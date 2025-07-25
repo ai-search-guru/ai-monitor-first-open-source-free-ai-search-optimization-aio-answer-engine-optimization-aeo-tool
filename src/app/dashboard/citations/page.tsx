@@ -24,7 +24,8 @@ import {
   Eye,
   SortAsc,
   SortDesc,
-  ArrowUpDown
+  ArrowUpDown,
+  MessageSquare
 } from 'lucide-react';
 import CitationsTable from '@/components/features/CitationsTable';
 
@@ -199,6 +200,7 @@ export default function CitationsPage(): React.ReactElement {
     // Use actual citations array for consistent counts with table
     const totalCitations = analyticsCitations.length;
     const domainCitations = analyticsCitations.filter(c => c.isDomainCitation).length;
+    const brandMentions = analyticsCitations.filter(c => c.isBrandMention).length;
     const uniqueDomains = new Set(analyticsCitations.map(c => c.domain)).size;
     
     const providerStats = {
@@ -230,11 +232,13 @@ export default function CitationsPage(): React.ReactElement {
     return {
       totalCitations,
       domainCitations,
+      brandMentions,
       uniqueDomains,
       providerStats,
       topDomains,
       topSources,
-      domainCitationRate: totalCitations > 0 ? (domainCitations / totalCitations * 100) : 0
+      domainCitationRate: totalCitations > 0 ? (domainCitations / totalCitations * 100) : 0,
+      brandMentionRate: totalCitations > 0 ? (brandMentions / totalCitations * 100) : 0
     };
   }, [allCitations, lifetimeAnalytics]);
 
@@ -373,7 +377,7 @@ export default function CitationsPage(): React.ReactElement {
         </div>
 
         {/* Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card className="p-4 flex-1">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -395,6 +399,19 @@ export default function CitationsPage(): React.ReactElement {
                 <p className="text-sm text-muted-foreground">Domain Citations</p>
                 <p className="text-2xl font-bold text-foreground">{analytics.domainCitations}</p>
                 <p className="text-xs text-purple-600">{analytics.domainCitationRate.toFixed(1)}% of total</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 flex-1">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <MessageSquare className="h-5 w-5 text-yellow-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Brand Mentions</p>
+                <p className="text-2xl font-bold text-foreground">{analytics.brandMentions}</p>
+                <p className="text-xs text-yellow-600">{analytics.brandMentionRate.toFixed(1)}% of total</p>
               </div>
             </div>
           </Card>

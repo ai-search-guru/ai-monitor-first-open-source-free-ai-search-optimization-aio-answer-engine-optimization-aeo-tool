@@ -1,8 +1,8 @@
 'use client'
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useMemo } from "react";
 import { useAuthContext } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { Shield, Link as LinkIcon, MessageSquare, Heart, BarChart3, Zap, RefreshCw, AlertCircle } from 'lucide-react';
+import { Shield, Link as LinkIcon, MessageSquare, Heart, BarChart3, Zap, RefreshCw, AlertCircle, Quote, Globe, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -26,6 +26,8 @@ import { useBrandAnalyticsCombined } from '@/hooks/useBrandAnalytics';
 import LifetimeAnalyticsCharts from '@/components/features/LifetimeAnalyticsCharts';
 import QueriesContent from '@/app/dashboard/queries/queries-content';
 import CompetitorMentionsCard from '@/components/features/CompetitorMentionsCard';
+import { useLifetimeCitations } from '@/hooks/useLifetimeCitations';
+import { useTotalCitations } from '@/hooks/useTotalCitations';
 
 
 // Recommendations Data manually updated on a weekly basis
@@ -85,10 +87,64 @@ function Page(): React.ReactElement {
     hasLifetimeData
   } = useBrandAnalyticsCombined(selectedBrand?.id);
   
+  // Add citations data using same hooks as citations page
+  const { 
+    citations: lifetimeCitations, 
+    loading: citationsLoading, 
+    error: citationsError,
+    stats: lifetimeStats 
+  } = useLifetimeCitations({ 
+    brandId: selectedBrand?.id 
+  });
+  
+  // Get total citations count using the same hook as citations page
+  const { totalCitations: totalCitationsFromHook } = useTotalCitations({ brandId: selectedBrand?.id });
+  
   // Modal state
   const [showTrackingModal, setShowTrackingModal] = React.useState(false);
   const [newBrandName, setNewBrandName] = React.useState('');
   const [newBrandId, setNewBrandId] = React.useState('');
+
+  // Citations analytics calculations - matches citations page logic
+  const citationAnalytics = useMemo(() => {
+    if (!lifetimeCitations || !selectedBrand) return null;
+    
+    // Use all citations with valid domains (consistent with citations page)
+    const analyticsCitations = lifetimeCitations.filter(c => c.domain);
+    
+    const totalCitations = analyticsCitations.length;
+    const domainCitations = analyticsCitations.filter(c => c.isDomainCitation).length;
+    const brandMentions = analyticsCitations.filter(c => c.isBrandMention).length;
+    const uniqueDomains = new Set(analyticsCitations.map(c => c.domain)).size;
+    
+    const providerStats = {
+      chatgpt: analyticsCitations.filter(c => c.provider === 'chatgpt').length,
+      perplexity: analyticsCitations.filter(c => c.provider === 'perplexity').length,
+      googleAI: analyticsCitations.filter(c => c.provider === 'googleAI').length
+    };
+
+    const topDomains = Object.entries(
+      analyticsCitations.reduce((acc, citation) => {
+        if (citation.domain) {
+          acc[citation.domain] = (acc[citation.domain] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>)
+    )
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5); // Show top 5 domains on dashboard
+
+    return {
+      totalCitations,
+      domainCitations,
+      brandMentions,
+      uniqueDomains,
+      providerStats,
+      topDomains,
+      domainCitationRate: totalCitations > 0 ? (domainCitations / totalCitations * 100) : 0,
+      brandMentionRate: totalCitations > 0 ? (brandMentions / totalCitations * 100) : 0
+    };
+  }, [lifetimeCitations, selectedBrand]);
 
   useEffect(() => {
     // Only redirect if not loading and user is null
@@ -302,6 +358,7 @@ function Page(): React.ReactElement {
           <BrandAnalyticsDisplay 
             latestAnalytics={latestAnalytics} 
             lifetimeAnalytics={lifetimeAnalytics}
+            citationAnalytics={citationAnalytics}
           />
         ) : analyticsLoading ? (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
