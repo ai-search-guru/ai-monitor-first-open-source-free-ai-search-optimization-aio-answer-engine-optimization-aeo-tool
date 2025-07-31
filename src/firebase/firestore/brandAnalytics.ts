@@ -329,18 +329,21 @@ export function calculateCumulativeAnalytics(
   const finalProviderStats = {
     chatgpt: {
       ...providerStats.chatgpt,
-      averageResponseTime: providerStats.chatgpt.queriesProcessed > 0 ? 
-        providerStats.chatgpt.totalResponseTime / providerStats.chatgpt.queriesProcessed : undefined
+      ...(providerStats.chatgpt.queriesProcessed > 0 && {
+        averageResponseTime: providerStats.chatgpt.totalResponseTime / providerStats.chatgpt.queriesProcessed
+      })
     },
     google: {
       ...providerStats.google,
-      averageResponseTime: providerStats.google.queriesProcessed > 0 ? 
-        providerStats.google.totalResponseTime / providerStats.google.queriesProcessed : undefined
+      ...(providerStats.google.queriesProcessed > 0 && {
+        averageResponseTime: providerStats.google.totalResponseTime / providerStats.google.queriesProcessed
+      })
     },
     perplexity: {
       ...providerStats.perplexity,
-      averageResponseTime: providerStats.perplexity.queriesProcessed > 0 ? 
-        providerStats.perplexity.totalResponseTime / providerStats.perplexity.queriesProcessed : undefined
+      ...(providerStats.perplexity.queriesProcessed > 0 && {
+        averageResponseTime: providerStats.perplexity.totalResponseTime / providerStats.perplexity.queriesProcessed
+      })
     }
   };
 
@@ -1050,10 +1053,24 @@ export async function saveLifetimeAnalytics(analyticsData: LifetimeBrandAnalytic
       console.log(`✅ Analytics data with ${analyticsData.allCitations?.length || 0} citations stored directly in Firestore`);
     }
     
-    // Remove undefined fields before saving to Firebase
-    const cleanedData = Object.fromEntries(
-      Object.entries(analyticsDataForFirestore).filter(([_, value]) => value !== undefined)
-    );
+    // Remove undefined fields before saving to Firebase (deep clean)
+    const cleanUndefinedFields = (obj: any): any => {
+      if (obj === null || typeof obj !== 'object') return obj;
+      
+      if (Array.isArray(obj)) {
+        return obj.map(cleanUndefinedFields);
+      }
+      
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== undefined) {
+          cleaned[key] = cleanUndefinedFields(value);
+        }
+      }
+      return cleaned;
+    };
+
+    const cleanedData = cleanUndefinedFields(analyticsDataForFirestore);
 
     const docRef = doc(db, 'v8_lifetime_brand_analytics', documentId);
     await setDoc(docRef, cleanedData);

@@ -6,7 +6,7 @@ import { useToast } from '@/context/ToastContext';
 import { RefreshCw, Zap, AlertCircle, CheckCircle, RotateCcw, StopCircle, CreditCard } from 'lucide-react';
 import { updateBrandWithQueryResults } from '@/firebase/firestore/getUserBrands';
 import { saveDetailedQueryResults } from '@/firebase/firestore/detailedQueryResults';
-import { calculateCumulativeAnalytics, saveBrandAnalytics } from '@/firebase/firestore/brandAnalytics';
+import { calculateCumulativeAnalytics, saveBrandAnalytics, calculateLifetimeBrandAnalytics, saveLifetimeAnalytics } from '@/firebase/firestore/brandAnalytics';
 import { calculateCumulativeCompetitorAnalytics } from '@/utils/competitor-analytics';
 import { saveCompetitorAnalytics } from '@/firebase/firestore/competitorAnalytics';
 import { Competitor } from '@/lib/competitor-matching';
@@ -493,6 +493,33 @@ export default function ProcessQueriesButton({
       // Analytics are now calculated and saved incrementally after each query
       // No need for final analytics calculation since it's done per query
 
+      // Calculate and save lifetime analytics after completing all queries to ensure citations table gets updated
+      // Run this even if cancelled, as long as some queries were processed
+      if (processedCount > 0) {
+        try {
+          setMessage(`Updating lifetime analytics for ${brandName}...`);
+          console.log('🔄 Calculating lifetime analytics after query processing completion...');
+          
+          const { result: lifetimeAnalytics, error: lifetimeError } = await calculateLifetimeBrandAnalytics(targetBrandId!);
+          
+          if (lifetimeError) {
+            console.error('❌ Error calculating lifetime analytics:', lifetimeError);
+          } else if (lifetimeAnalytics) {
+            console.log('💾 Saving lifetime analytics to ensure citations table is updated...');
+            const { success: lifetimeSaveSuccess, error: lifetimeSaveError } = await saveLifetimeAnalytics(lifetimeAnalytics);
+            
+            if (lifetimeSaveSuccess) {
+              console.log('✅ Lifetime analytics saved successfully - citations table should now be updated');
+            } else {
+              console.error('❌ Error saving lifetime analytics:', lifetimeSaveError);
+            }
+          }
+        } catch (lifetimeError) {
+          console.error('❌ Error in lifetime analytics processing:', lifetimeError);
+          // Don't fail the entire process for lifetime analytics errors
+        }
+      }
+
       // Call the onComplete callback if provided
       if (onComplete) {
         onComplete({
@@ -506,6 +533,15 @@ export default function ProcessQueriesButton({
             creditsUsed: processedCount * 10
           }
         });
+      }
+
+      // Force a complete refresh of brand data to ensure all components update
+      try {
+        console.log('🔄 Forcing complete brand data refresh after query processing...');
+        await refetchBrands();
+        console.log('✅ Brand data refresh completed');
+      } catch (refreshError) {
+        console.error('❌ Error during final brand data refresh:', refreshError);
       }
 
       // Reset status after 5 seconds
