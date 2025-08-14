@@ -23,7 +23,7 @@ export class PerplexityProvider extends BaseAPIProvider {
       await this.checkRateLimit();
 
       const payload = {
-        model: request.model || 'sonar-pro',
+        model: request.model || 'sonar',
         messages: request.messages || [
           {
             role: 'system',

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       prompt: body.prompt,
       input: body.input,
       messages: body.messages,
-      model: body.model || 'sonar-pro',
+      model: body.model || 'sonar',
       temperature: body.temperature || 0.7,
       max_tokens: body.max_tokens || 1000
     });

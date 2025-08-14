@@ -333,7 +333,7 @@ const BrandAnalyticsDisplay = React.memo<BrandAnalyticsDisplayProps>(({
                 citationAnalytics
               )}
               <div className="mt-2 text-xs text-gray-500">
-                *While setting up the brand, queries are processed twice to weed out outliers
+        
               </div>
             </>
           )}

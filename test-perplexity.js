@@ -3,12 +3,12 @@ const http = require('http');
 async function testPerplexity() {
   console.log('🧪 Testing Perplexity AI Sonar Provider');
   console.log('====================================');
-  console.log('Model: sonar-pro');
+  console.log('Model: sonar');
   console.log('Real-time web search enabled...\n');
   
   const testData = {
     prompt: 'What are the latest developments in AI technology in 2025?',
-    model: 'sonar-pro',
+    model: 'sonar',
     temperature: 0.7,
     max_tokens: 1000
   };

@@ -213,7 +213,7 @@ Output format (return ONLY valid JSON array):
         // Show success notification for auto-generated queries
         if (parsedQueries.length > 0) {
           showSuccess(
-            '✨ Queries Generated Successfully!',
+            'Query Search Completed!',
             `Found ${parsedQueries.length} relevant queries for ${companyData?.companyName}. You can add more or edit existing ones.`
           );
         }

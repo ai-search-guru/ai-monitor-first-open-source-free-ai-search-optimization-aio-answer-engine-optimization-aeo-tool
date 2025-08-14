@@ -239,7 +239,7 @@ export default function QueriesOverview({
         };
       } else {
         return {
-          status: 'Processed',
+          status: 'Due for Processing',
           color: 'bg-amber-500 text-white',
           description: `Processed ${daysSinceProcessed} days ago (due for reprocessing)`,
           showLoader: false
