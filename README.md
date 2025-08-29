@@ -1,4 +1,4 @@
-# 🤖 AI Monitor - Free & Open Source AI Optimization Tool
+# 🤖 AI Monitor - World's First Open Source AI Optimization (AIO) / Generative Engine Optimization (GEO) Tool
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
