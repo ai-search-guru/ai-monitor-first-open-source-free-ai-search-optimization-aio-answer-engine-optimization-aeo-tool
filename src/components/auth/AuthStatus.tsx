@@ -9,7 +9,7 @@ interface AuthStatusProps {
   showSignOut?: boolean;
   className?: string;
 }
-
+// test comment 
 export default function AuthStatus({ showSignOut = true, className = '' }: AuthStatusProps): React.ReactElement {
   const { user, loading } = useAuthContext();
   const router = useRouter();
