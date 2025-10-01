@@ -11,6 +11,8 @@ interface ProtectedRouteProps {
   adminEmails?: string[]; // Optional list of admin emails
 }
 
+// login page is /signin page
+
 export default function ProtectedRoute({ 
   children, 
   redirectTo = "/signin",
