@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 function Page(): JSX.Element {
-  // Access the user object from the authentication context
+  
   // Access the user object from the authentication context to check if the user is logged in
   // const { user } = useAuthContext();
   const { user } = useAuthContext() as { user: any }; // Use 'as' to assert the type as { user: any }

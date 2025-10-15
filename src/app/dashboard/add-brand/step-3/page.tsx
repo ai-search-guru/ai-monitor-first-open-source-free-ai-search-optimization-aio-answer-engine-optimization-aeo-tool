@@ -616,21 +616,21 @@ Output format (return ONLY valid JSON array):
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#000C60]"></div>
+      <div className="min-h-screen bg-[#0E353C] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#93E85F]"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-[#0E353C] flex flex-col">
       {/* Header with Logo and Step Indicators */}
       <div className="flex flex-col items-center pt-8 pb-6">
         <div className="flex flex-col items-center space-y-2 mb-8">
           {/* AI Monitor Logo */}
           <div className="relative w-48 h-12">
             <Image
-              src="/AI-Monitor-Logo-V3-long-light-theme.webp"
+              src="/getcito-logo-dark.webp"
               alt="AI Monitor Logo"
               width={192}
               height={48}
@@ -646,41 +646,38 @@ Output format (return ONLY valid JSON array):
               priority
             />
           </div>
-          <p className="text-muted-foreground text-sm">
-            Intelligent brand analysis and query optimization platform
-          </p>
         </div>
 
         {/* Step Indicators */}
         <div className="flex items-center space-x-8">
           {/* Step 1 - Completed */}
           <div className="flex flex-col items-center">
-            <div className="w-12 h-12 bg-[#00B087] text-white rounded-full flex items-center justify-center text-lg font-semibold mb-2">
+            <div className="w-12 h-12 bg-[#93E85F] text-black rounded-full flex items-center justify-center text-lg font-semibold mb-2">
               ✓
             </div>
-            <span className="text-muted-foreground text-sm">Domain</span>
+            <span className="text-gray-300 text-sm">Domain</span>
           </div>
 
           {/* Connector */}
-          <div className="w-16 h-px bg-[#00B087]"></div>
+          <div className="w-16 h-px bg-[#93E85F]"></div>
 
           {/* Step 2 - Completed */}
           <div className="flex flex-col items-center">
-            <div className="w-12 h-12 bg-[#00B087] text-white rounded-full flex items-center justify-center text-lg font-semibold mb-2">
+            <div className="w-12 h-12 bg-[#93E85F] text-black rounded-full flex items-center justify-center text-lg font-semibold mb-2">
               ✓
             </div>
-            <span className="text-muted-foreground text-sm">Brand</span>
+            <span className="text-gray-300 text-sm">Brand</span>
           </div>
 
           {/* Connector */}
-          <div className="w-16 h-px bg-[#00B087]"></div>
+          <div className="w-16 h-px bg-[#93E85F]"></div>
 
           {/* Step 3 - Active */}
           <div className="flex flex-col items-center">
-            <div className="w-12 h-12 bg-[#000C60] text-white rounded-full flex items-center justify-center text-lg font-semibold mb-2">
+            <div className="w-12 h-12 bg-[#93E85F] text-black rounded-full flex items-center justify-center text-lg font-semibold mb-2">
               3
             </div>
-            <span className="text-foreground text-sm font-medium">Queries</span>
+            <span className="text-white text-sm font-medium">Queries</span>
           </div>
         </div>
       </div>
@@ -689,29 +686,29 @@ Output format (return ONLY valid JSON array):
       <div className="flex-1 flex px-4 max-w-7xl mx-auto">
         {/* Sidebar - Topics */}
         <div className="w-80 flex-shrink-0 mr-8">
-          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm sticky top-8">
+          <div className="bg-[#0a2a30] border border-[#1a4a54] rounded-2xl p-6 shadow-sm sticky top-8">
             {/* Brand Display */}
             {companyData && (
               <div className="mb-6 pb-4 border-b border-border">
                 <div className="flex items-center space-x-3 p-3">
                   <WebLogo domain={domain} size={24} />
-                  <span className="text-foreground font-medium truncate">
+                  <span className="text-white font-medium truncate">
                     {companyData.companyName}
                   </span>
                 </div>
               </div>
             )}
 
-            <h2 className="text-lg font-semibold text-foreground mb-4">Topics</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">Topics</h2>
             
             {/* Add Topic Button */}
             <button 
               onClick={handleAddTopic}
               disabled={!canAddMoreTopics}
               className={`w-full flex items-center justify-center space-x-2 rounded-lg px-4 py-2 mb-6 transition-colors ${
-                canAddMoreTopics 
-                  ? 'text-[#000C60] border border-[#000C60] hover:bg-[#000C60]/5' 
-                  : 'text-muted-foreground border border-muted-foreground/30 cursor-not-allowed'
+                canAddMoreTopics
+                  ? 'text-[#93E85F] border border-[#93E85F] hover:bg-[#93E85F]/5'
+                  : 'text-gray-400 border border-gray-600 cursor-not-allowed'
               }`}
             >
               <Plus className="h-4 w-4" />
@@ -724,9 +721,9 @@ Output format (return ONLY valid JSON array):
               <div 
                 onClick={() => setSelectedTopic('all')}
                 className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
-                  selectedTopic === 'all' 
-                    ? 'bg-[#000C60] text-white' 
-                    : 'bg-muted/50 border border-border hover:bg-muted/70'
+                  selectedTopic === 'all'
+                    ? 'bg-[#93E85F] text-black'
+                    : 'bg-[#0E353C] border border-[#1a4a54] text-gray-300 hover:bg-[#164a54]'
                 }`}
               >
                 <span className="font-medium">All Topics</span>
@@ -743,9 +740,9 @@ Output format (return ONLY valid JSON array):
                     key={index} 
                     onClick={() => setSelectedTopic(topic)}
                     className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
-                      selectedTopic === topic 
-                        ? 'bg-[#000C60] text-white' 
-                        : 'hover:bg-muted/30'
+                      selectedTopic === topic
+                        ? 'bg-[#93E85F] text-black'
+                        : 'text-gray-300 hover:bg-[#164a54]'
                     }`}
                   >
                     <span className="capitalize">{topic}</span>
@@ -757,8 +754,8 @@ Output format (return ONLY valid JSON array):
               })}
               
               {/* Topic Count */}
-              <div className="mt-4 pt-4 border-t border-border">
-                <div className="text-xs text-muted-foreground">
+              <div className="mt-4 pt-4 border-t border-[#1a4a54]">
+                <div className="text-xs text-gray-300">
                   {totalTopics}/10 topics added
                 </div>
               </div>
@@ -769,11 +766,11 @@ Output format (return ONLY valid JSON array):
         {/* Main Content Area */}
         <div className="flex-1">
           {/* Main Card */}
-          <div className="bg-card border border-border rounded-2xl p-8 shadow-lg">
+          <div className="bg-[#0a2a30] border border-[#1a4a54] rounded-2xl p-8 shadow-lg">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h1 className="text-3xl font-bold text-foreground mb-2">
+                <h1 className="text-3xl font-bold text-white mb-2">
                   {selectedTopic === 'all' ? 'All Topics' : selectedTopic.charAt(0).toUpperCase() + selectedTopic.slice(1)}
                 </h1>
                 <div className="flex items-center space-x-4 text-sm text-muted-foreground">
@@ -782,14 +779,14 @@ Output format (return ONLY valid JSON array):
               </div>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-gray-300">
                     {filteredQueries.length}/{generatedQueries.length} queries shown
                   </span>
                 </div>
                 {generatedQueries.length > 0 && (
                   <button
                     onClick={handleAddQuery}
-                    className="inline-flex items-center space-x-2 bg-[#000C60] text-white px-4 py-2 rounded-lg hover:bg-[#000C60]/90 transition-colors"
+                    className="inline-flex items-center space-x-2 bg-[#93E85F] text-black px-4 py-2 rounded-lg hover:bg-[#93E85F]/90 transition-colors"
                   >
                     <Plus className="h-4 w-4" />
                     <span>Add a prompt</span>
@@ -804,7 +801,7 @@ Output format (return ONLY valid JSON array):
                 <button
                   onClick={generateQueries}
                   disabled={isGenerating || !companyData}
-                  className="inline-flex items-center space-x-2 bg-[#000C60] text-white px-8 py-4 rounded-xl hover:bg-[#000C60]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center space-x-2 bg-[#93E85F] text-black px-8 py-4 rounded-xl hover:bg-[#93E85F]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isGenerating ? (
                     <>
@@ -827,131 +824,131 @@ Output format (return ONLY valid JSON array):
                          {/* Intent Distribution */}
              {generatedQueries.length > 0 && (
                <div className="space-y-8">
-                 <div>
-                   <h2 className="text-xl font-semibold text-foreground mb-4">Query Intent Distribution</h2>
-                   <p className="text-muted-foreground text-sm mb-6">
-                     Shows the percentage breakdown of different intents based on the queries sent to the AI.
-                   </p>
-                   
-                   {/* Intent Distribution Bar */}
-                   <div className="relative h-8 bg-gray-200 rounded-lg overflow-hidden mb-4">
-                     {['Awareness', 'Interest', 'Consideration', 'Purchase'].map((category, index) => {
-                       const count = filteredQueries.filter(q => q.category === category).length;
-                       const percentage = filteredQueries.length > 0 ? (count / filteredQueries.length) * 100 : 0;
-                       const colors = ['bg-green-500', 'bg-blue-500', 'bg-yellow-500', 'bg-purple-500'];
-                       const previousPercentages = ['Awareness', 'Interest', 'Consideration', 'Purchase']
-                         .slice(0, index)
-                         .reduce((sum, cat) => {
-                           const catCount = filteredQueries.filter(q => q.category === cat).length;
-                           return sum + (filteredQueries.length > 0 ? (catCount / filteredQueries.length) * 100 : 0);
-                         }, 0);
-                       
-                       return percentage > 0 ? (
-                         <div
-                           key={category}
-                           className={`absolute top-0 h-full ${colors[index]}`}
-                           style={{
-                             left: `${previousPercentages}%`,
-                             width: `${percentage}%`
-                           }}
-                         />
-                       ) : null;
-                     })}
-                   </div>
-                   
-                   {/* Intent Legend */}
-                   <div className="flex flex-wrap gap-6 text-sm">
-                     {['Awareness', 'Interest', 'Consideration', 'Purchase'].map((category, index) => {
-                       const count = filteredQueries.filter(q => q.category === category).length;
-                       const percentage = filteredQueries.length > 0 ? Math.round((count / filteredQueries.length) * 100) : 0;
-                       const colors = ['bg-green-500', 'bg-blue-500', 'bg-yellow-500', 'bg-purple-500'];
-                       
-                       return (
-                         <div key={category} className="flex items-center space-x-2">
-                           <div className={`w-3 h-3 rounded-full ${colors[index]}`}></div>
-                           <span className="text-muted-foreground">
-                             {category} - <span className="font-medium">{percentage}%</span>
-                           </span>
-                         </div>
-                       );
-                     })}
-                   </div>
-                 </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-white mb-4">Query Intent Distribution</h2>
+                  <p className="text-white text-sm mb-6">
+                    Shows the percentage breakdown of different intents based on the queries sent to the AI.
+                  </p>
+                  
+                  {/* Intent Distribution Bar */}
+                  <div className="relative h-8 bg-muted rounded-lg overflow-hidden mb-4">
+                    {['Awareness', 'Interest', 'Consideration', 'Purchase'].map((category, index) => {
+                      const count = filteredQueries.filter(q => q.category === category).length;
+                      const percentage = filteredQueries.length > 0 ? (count / filteredQueries.length) * 100 : 0;
+                      const colors = ['bg-green-500', 'bg-blue-500', 'bg-yellow-500', 'bg-purple-500'];
+                      const previousPercentages = ['Awareness', 'Interest', 'Consideration', 'Purchase']
+                        .slice(0, index)
+                        .reduce((sum, cat) => {
+                          const catCount = filteredQueries.filter(q => q.category === cat).length;
+                          return sum + (filteredQueries.length > 0 ? (catCount / filteredQueries.length) * 100 : 0);
+                        }, 0);
+                      
+                      return percentage > 0 ? (
+                        <div
+                          key={category}
+                          className={`absolute top-0 h-full ${colors[index]}`}
+                          style={{
+                            left: `${previousPercentages}%`,
+                            width: `${percentage}%`
+                          }}
+                        />
+                      ) : null;
+                    })}
+                  </div>
+                  
+                  {/* Intent Legend */}
+                  <div className="flex flex-wrap gap-6 text-sm text-white">
+                    {['Awareness', 'Interest', 'Consideration', 'Purchase'].map((category, index) => {
+                      const count = filteredQueries.filter(q => q.category === category).length;
+                      const percentage = filteredQueries.length > 0 ? Math.round((count / filteredQueries.length) * 100) : 0;
+                      const colors = ['bg-green-500', 'bg-blue-500', 'bg-yellow-500', 'bg-purple-500'];
+                      
+                      return (
+                        <div key={category} className="flex items-center space-x-2">
+                          <div className={`w-3 h-3 rounded-full ${colors[index]}`}></div>
+                          <span>
+                            {category} - <span className="font-medium">{percentage}%</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                                                  {/* Prompts Table */}
-                 <div>
-                   <div className="flex items-center justify-between mb-4">
-                     <h3 className="text-lg font-semibold text-foreground">
-                       Prompts ({filteredQueries.length})
-                     </h3>
-                     <div className="flex items-center space-x-2">
-                       <button className="flex items-center space-x-2 text-muted-foreground hover:text-foreground">
-                         <span>🎯 Intents</span>
-                         <span className="text-xs">▼</span>
-                       </button>
-                       <button className="flex items-center space-x-2 text-muted-foreground hover:text-foreground">
-                         <span># Topics</span>
-                         <span className="text-xs">▼</span>
-                       </button>
-                     </div>
-                   </div>
-                   
-                   {/* Table */}
-                   <div className="bg-card border border-border rounded-lg overflow-hidden">
-                     {/* Table Header */}
-                     <div className="grid grid-cols-10 gap-4 p-4 bg-muted/30 border-b border-border text-sm font-medium text-muted-foreground">
-                       <div className="col-span-1">
-                         <input 
-                           type="checkbox" 
-                           className="rounded" 
-                           checked={areAllFilteredSelected}
-                           onChange={(e) => handleSelectAll(e.target.checked)}
-                           title={areAllFilteredSelected ? "Deselect all" : "Select all"}
-                         />
-                       </div>
-                       <div className="col-span-6">Prompts ({selectedFilteredCount}/{filteredQueries.length} selected)</div>
-                       <div className="col-span-2">Topic</div>
-                       <div className="col-span-1">Intent</div>
-                     </div>
-                     
-                     {/* Table Body */}
-                     <div className="divide-y divide-border">
-                       {filteredQueries.map((query, index) => {
-                         const actualIndex = generatedQueries.findIndex(q => q === query);
-                         const isSelected = selectedQueries.has(actualIndex);
-                         
-                         return (
-                         <div key={index} className="grid grid-cols-10 gap-4 p-4 hover:bg-muted/20 transition-colors">
-                           <div className="col-span-1">
-                             <input 
-                               type="checkbox" 
-                               className="rounded" 
-                               checked={isSelected}
-                               onChange={(e) => handleSelectQuery(index, e.target.checked)}
-                             />
-                           </div>
-                           <div className="col-span-6">
-                             <p className="text-foreground font-medium">
-                               {query.query}
-                             </p>
-                           </div>
-                           <div className="col-span-2">
-                             <span className="text-muted-foreground capitalize">
-                               {query.keyword}
-                             </span>
-                           </div>
-                           <div className="col-span-1">
-                             <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-md text-xs font-medium ${getCategoryColor(query.category)}`}>
-                               {getCategoryIcon(query.category)}
-                               <span>{query.category.charAt(0)}</span>
-                             </div>
-                           </div>
-                         </div>
-                         );
-                       })}
-                     </div>
-                   </div>
-                 </div>
+                                                 {/* Prompts Table */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white">
+                      Prompts <span className="text-white">({filteredQueries.length})</span>
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <button className="flex items-center space-x-2 text-white hover:text-primary transition-colors">
+                        <span>🎯 Intents</span>
+                        <span className="text-xs">▼</span>
+                      </button>
+                      <button className="flex items-center space-x-2 text-white hover:text-primary transition-colors">
+                        <span># Topics</span>
+                        <span className="text-xs">▼</span>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Table */}
+                  <div className="bg-[#1a2a2e] border border-gray-700 rounded-lg overflow-hidden shadow-sm">
+                    {/* Table Header */}
+                    <div className="grid grid-cols-10 gap-4 p-4 bg-[#0f1c1f] border-b border-gray-700 text-sm font-semibold text-white">
+                      <div className="col-span-1">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-gray-600 bg-gray-700 focus:ring-primary focus:ring-2" 
+                          checked={areAllFilteredSelected}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          title={areAllFilteredSelected ? "Deselect all" : "Select all"}
+                        />
+                      </div>
+                      <div className="col-span-6">Prompts <span className="text-white">({selectedFilteredCount}/{filteredQueries.length} selected)</span></div>
+                      <div className="col-span-2">Topic</div>
+                      <div className="col-span-1">Intent</div>
+                    </div>
+                    
+                    {/* Table Body */}
+                    <div className="divide-y divide-gray-700">
+                      {filteredQueries.map((query, index) => {
+                        const actualIndex = generatedQueries.findIndex(q => q === query);
+                        const isSelected = selectedQueries.has(actualIndex);
+                        
+                        return (
+                        <div key={index} className="grid grid-cols-10 gap-4 p-4 hover:bg-[#0f1c1f] transition-colors">
+                          <div className="col-span-1">
+                            <input 
+                              type="checkbox" 
+                              className="rounded border-gray-600 bg-gray-700 focus:ring-primary focus:ring-2" 
+                              checked={isSelected}
+                              onChange={(e) => handleSelectQuery(index, e.target.checked)}
+                            />
+                          </div>
+                          <div className="col-span-6">
+                            <p className="text-white">
+                              {query.query}
+                            </p>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-300 capitalize text-sm">
+                              {query.keyword}
+                            </span>
+                          </div>
+                          <div className="col-span-1">
+                            <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-md text-xs font-medium ${getCategoryColor(query.category)}`}>
+                              {getCategoryIcon(query.category)}
+                              <span>{query.category.charAt(0)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
 
                                  
               </div>
@@ -989,16 +986,16 @@ Output format (return ONLY valid JSON array):
           <div className="flex justify-between mt-8">
             <button
               onClick={() => router.push('/dashboard/add-brand/step-2')}
-              className="flex items-center space-x-2 bg-muted text-foreground px-6 py-3 rounded-xl hover:bg-accent transition-colors"
+              className="flex items-center space-x-2 bg-[#164a54] text-white px-6 py-3 rounded-xl hover:bg-[#1a4a54] transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
               <span>Back</span>
             </button>
-            
+
                           <button
                 onClick={handleComplete}
                 disabled={!queryState.result || queryState.loading || selectedQueries.size < 4 || isCompleting || credits < 100}
-                className="flex items-center space-x-2 bg-[#00B087] text-white px-6 py-3 rounded-xl hover:bg-[#00B087]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center space-x-2 bg-[#93E85F] text-black px-6 py-3 rounded-xl hover:bg-[#93E85F]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isCompleting ? (
                   <>

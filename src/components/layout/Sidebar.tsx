@@ -154,7 +154,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
 
       {/* Sidebar */}
       <div
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-card border-r border-border transform ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-[#0E353C] border-r border-[#1a4a54] transform ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0 transition-transform duration-300 ease-in-out`}
       >
@@ -165,7 +165,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
               {/* Light theme logo only - TODO: Restore theme-aware logos when implementing theme switching */}
               <div className="relative">
                 <Image
-                  src="/AI-Monitor-Logo-V3-long-light-theme.webp"
+                  src="/getcito-logo-dark.webp"
                   alt="AI Monitor Logo"
                   width={160}
                   height={36}
@@ -193,15 +193,15 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
             {/* User Brands - Always show, handle loading and empty states */}
             {!brandsLoading && (
               <>
-                <div className="w-full bg-muted/30 border border-border rounded-xl mb-6 p-4">
-                  <h3 className="text-sm font-medium text-foreground mb-3">Your Brands</h3>
+                <div className="w-full bg-[#0a2a30] border border-[#1a4a54] rounded-xl mb-6 p-4">
+                  <h3 className="text-sm font-medium text-white mb-3">Your Brands</h3>
                   
                   {/* Always show dropdown - regardless of brand count */}
                   <div className="relative" ref={dropdownRef}>
                     {/* Dropdown Button */}
                     <button
                       onClick={() => setIsBrandsDropdownOpen(!isBrandsDropdownOpen)}
-                      className="w-full flex items-center space-x-3 p-2 bg-background rounded-xl border border-border hover:bg-accent transition-colors"
+                      className="w-full flex items-center space-x-3 p-2 bg-[#0a2a30] rounded-xl border border-[#1a4a54] hover:bg-[#164a54] transition-colors"
                     >
                       {selectedBrandId && brands.length > 0 && (() => {
                         const selected = brands.find(b => b.id === selectedBrandId);
@@ -209,9 +209,9 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
                           <>
                             <WebLogo domain={selected.domain} size={20} />
                             <div className="flex-1 min-w-0 text-left">
-                              <p className="text-xs font-medium text-foreground truncate">{selected.companyName}</p>
+                              <p className="text-xs font-medium text-white truncate">{selected.companyName}</p>
                               {selected.domain && (
-                                <p className="text-xs text-muted-foreground truncate">{selected.domain}</p>
+                                <p className="text-xs text-gray-300 truncate">{selected.domain}</p>
                               )}
                             </div>
                           </>
@@ -219,23 +219,23 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
                       })()}
                       {(!selectedBrandId || brands.length === 0) && (
                         <div className="flex-1 text-left">
-                          <p className="text-xs font-medium text-muted-foreground">
+                          <p className="text-xs font-medium text-gray-300">
                             {brands.length === 0 ? 'No brands available' : 'Select a brand'}
                           </p>
                         </div>
                       )}
                       <div className="flex-shrink-0">
                         {isBrandsDropdownOpen ? (
-                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          <ChevronUp className="h-4 w-4 text-gray-300" />
                         ) : (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          <ChevronDown className="h-4 w-4 text-gray-300" />
                         )}
                       </div>
                     </button>
 
                     {/* Dropdown Menu */}
                     {isBrandsDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-[#0a2a30] border border-[#1a4a54] rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
                         {/* Show brands if available */}
                         {brands.length > 0 ? (
                           <>
@@ -247,33 +247,33 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
                                   setSelectedBrandId(brand.id);
                                   setIsBrandsDropdownOpen(false);
                                 }}
-                                className={`w-full flex items-center space-x-3 p-2 hover:bg-accent transition-colors text-left ${
-                                  selectedBrandId === brand.id ? 'bg-accent' : ''
+                                className={`w-full flex items-center space-x-3 p-2 hover:bg-[#164a54] transition-colors text-left ${
+                                  selectedBrandId === brand.id ? 'bg-[#164a54]' : ''
                                 }`}
                               >
                                 <WebLogo domain={brand.domain} size={20} />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium text-foreground truncate">{brand.companyName}</p>
+                                  <p className="text-xs font-medium text-white truncate">{brand.companyName}</p>
                                   {brand.domain && (
-                                    <p className="text-xs text-muted-foreground truncate">{brand.domain}</p>
+                                    <p className="text-xs text-gray-300 truncate">{brand.domain}</p>
                                   )}
                                 </div>
                               </button>
                             ))}
                             
                             {/* Separator */}
-                            <div className="border-t border-border my-1"></div>
+                            <div className="border-t border-[#1a4a54] my-1"></div>
                           </>
                         ) : (
                           <>
                             {/* No brands message */}
                             <div className="p-3 text-center">
-                              <p className="text-xs text-muted-foreground">No brands available</p>
-                              <p className="text-xs text-muted-foreground mt-1">Create your first brand below</p>
+                              <p className="text-xs text-gray-300">No brands available</p>
+                              <p className="text-xs text-gray-300 mt-1">Create your first brand below</p>
                             </div>
-                            
+
                             {/* Separator */}
-                            <div className="border-t border-border my-1"></div>
+                            <div className="border-t border-[#1a4a54] my-1"></div>
                           </>
                         )}
                         
@@ -281,42 +281,42 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
                         <Link
                           href="/dashboard/add-brand/step-1"
                           onClick={() => setIsBrandsDropdownOpen(false)}
-                          className="w-full flex items-center space-x-3 p-2 hover:bg-accent transition-colors text-left rounded-b-xl"
+                          className="w-full flex items-center space-x-3 p-2 hover:bg-[#164a54] transition-colors text-left rounded-b-xl"
                         >
-                          <div className="w-5 h-5 bg-[#000C60] rounded-full flex items-center justify-center flex-shrink-0">
+                          <div className="w-5 h-5 bg-[#00B087] rounded-full flex items-center justify-center flex-shrink-0">
                             <Plus className="h-3 w-3 text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-[#000C60]">Add Brand</p>
-                            <p className="text-xs text-muted-foreground">Create a new brand</p>
+                            <p className="text-xs font-medium text-white">Add Brand</p>
+                            <p className="text-xs text-gray-300">Create a new brand</p>
                           </div>
                         </Link>
                       </div>
                     )}
                   </div>
                 </div>
-                
+
                 {/* Horizontal line - Always show */}
-                <div className="border-t border-border mb-8"></div>
+                <div className="border-t border-[#1a4a54] mb-8"></div>
               </>
             )}
 
             {/* Loading state */}
             {brandsLoading && (
               <>
-                <div className="w-full bg-muted/30 border border-border rounded-xl mb-6 p-4">
-                  <h3 className="text-sm font-medium text-foreground mb-3">Your Brands</h3>
-                  <div className="flex items-center space-x-3 p-2 bg-background rounded-lg border border-border">
-                    <div className="w-5 h-5 bg-muted rounded-full animate-pulse"></div>
+                <div className="w-full bg-[#0a2a30] border border-[#1a4a54] rounded-xl mb-6 p-4">
+                  <h3 className="text-sm font-medium text-white mb-3">Your Brands</h3>
+                  <div className="flex items-center space-x-3 p-2 bg-[#0a2a30] rounded-lg border border-[#1a4a54]">
+                    <div className="w-5 h-5 bg-[#164a54] rounded-full animate-pulse"></div>
                     <div className="flex-1 min-w-0">
-                      <div className="h-3 bg-muted rounded w-24 mb-1 animate-pulse"></div>
-                      <div className="h-2 bg-muted rounded w-16 animate-pulse"></div>
+                      <div className="h-3 bg-[#164a54] rounded w-24 mb-1 animate-pulse"></div>
+                      <div className="h-2 bg-[#164a54] rounded w-16 animate-pulse"></div>
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Horizontal line */}
-                <div className="border-t border-border mb-8"></div>
+                <div className="border-t border-[#1a4a54] mb-8"></div>
               </>
             )}
             
@@ -332,14 +332,14 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
                   href={item.href}
                   className={`group flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                     isActive
-                      ? 'bg-gradient-to-r from-[#000C60] to-[#000C60] text-white shadow-lg shadow-[#000C60]/20'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                      ? 'bg-[#93E85F] text-black shadow-lg shadow-[#93E85F]/20'
+                      : 'text-gray-300 hover:bg-[#164a54] hover:text-white'
                   }`}
                 >
-                  <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-muted-foreground group-hover:text-foreground'} transition-colors`} />
+                  <Icon className={`h-5 w-5 ${isActive ? 'text-black' : 'text-gray-300 group-hover:text-white'} transition-colors`} />
                   <span className="font-medium">{item.name}</span>
                   {isActive && (
-                    <div className="ml-auto w-2 h-2 bg-white rounded-full"></div>
+                    <div className="ml-auto w-2 h-2 bg-black rounded-full"></div>
                   )}
                 </Link>
               );
@@ -371,7 +371,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
           */}
 
           {/* User section */}
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-[#1a4a54]">
             {/* Credits Display */}
             {userProfile && (
               <div className={`mb-3 px-4 py-2 rounded-xl border ${
@@ -414,11 +414,11 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
               </div>
             )}
             
-            <div className="flex items-center space-x-3 px-4 py-3 rounded-xl bg-accent border border-border">
+            <div className="flex items-center space-x-3 px-4 py-3 rounded-xl bg-[#164a54] border border-[#1a4a54]">
               {userProfile?.photoURL ? (
-                <img 
-                  src={userProfile.photoURL} 
-                  alt="Profile" 
+                <img
+                  src={userProfile.photoURL}
+                  alt="Profile"
                   className="w-10 h-10 rounded-full object-cover"
                 />
               ) : (
@@ -427,16 +427,16 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-foreground text-sm font-medium truncate">
+                <p className="text-white text-sm font-medium truncate">
                   {userProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'User'}
                 </p>
-                <p className="text-muted-foreground text-xs truncate">
+                <p className="text-gray-300 text-xs truncate">
                   {userProfile?.email || user?.email || 'No email'}
                 </p>
               </div>
-              <button 
+              <button
                 onClick={handleSignOut}
-                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                className="text-gray-300 hover:text-white transition-colors p-1"
                 title="Sign out"
               >
                 <LogOut className="h-4 w-4" />
