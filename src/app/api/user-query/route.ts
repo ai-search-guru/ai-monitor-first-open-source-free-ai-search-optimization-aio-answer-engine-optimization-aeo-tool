@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
     const providerManager = new ProviderManager();
     
     // Use only the 3 selected providers
-    const selectedProviders = ['chatgptsearch', 'google-ai-overview', 'perplexity'];
+    const selectedProviders = ['azure-openai-search', 'google-ai-overview', 'perplexity'];
     
     // Create API request for the 3 providers
     const apiRequest = {
@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
     jobResult.results.forEach(result => {
       if (result.status === 'success' && result.data) {
         switch (result.providerId) {
-          case 'chatgptsearch':
+          case 'azure-openai-search':
             summary.chatgptSearch = {
               content: result.data.content || '',
               webSearchUsed: result.data.webSearchUsed || false,

@@ -257,7 +257,7 @@ export default function ProcessQueriesButton({
           // Process the enhanced results from the new API
           if (queryData.success && queryData.results && Array.isArray(queryData.results)) {
             queryData.results.forEach((result: any) => {
-              if (result.providerId === 'chatgptsearch') {
+              if (result.providerId === 'azure-openai-search') {
                 queryResult.results.chatgpt = {
                   response: result.data?.content || '',
                   ...(result.error && { error: result.error }),

@@ -1,5 +1,6 @@
 import { BaseAPIProvider } from './base-provider';
 import { AzureOpenAIProvider } from './openai-provider';
+import { AzureOpenAISearchProvider } from './azure-openai-search-provider';
 import { GeminiProvider } from './gemini-provider';
 import { ChatGPTSearchProvider } from './chatgptsearch-provider';
 import { GoogleAIOverviewProvider } from './google-ai-overview-provider';
@@ -25,6 +26,9 @@ export class ProviderManager {
       switch (config.type) {
         case 'azure-openai':
           provider = new AzureOpenAIProvider(config);
+          break;
+        case 'azure-openai-search':
+          provider = new AzureOpenAISearchProvider(config);
           break;
         case 'google-gemini':
           provider = new GeminiProvider(config);
@@ -62,7 +66,32 @@ export class ProviderManager {
       retryAttempts: 3,
     };
     configs.push(azureConfig);
-    
+
+    // Azure OpenAI Search Configuration (replaces ChatGPT Search)
+    const azureSearchApiKey = process.env.AZURE_OPENAI_SEARCH_API_KEY || process.env.AZURE_OPENAI_API_KEY;
+    if (azureSearchApiKey && azureSearchApiKey.trim() !== '') {
+      const azureOpenAISearchConfig = {
+        name: 'azure-openai-search',
+        type: 'azure-openai-search' as const,
+        apiKey: azureSearchApiKey,
+        azureEndpoint: process.env.AZURE_OPENAI_SEARCH_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT || 'https://your-resource-name.openai.azure.com',
+        deploymentName: process.env.AZURE_OPENAI_SEARCH_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4',
+        apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-10-21',
+        // Optional: Azure Search configuration for web search
+        azureSearchEndpoint: process.env.AZURE_SEARCH_ENDPOINT,
+        azureSearchIndex: process.env.AZURE_SEARCH_INDEX,
+        azureSearchApiKey: process.env.AZURE_SEARCH_API_KEY,
+        timeout: 45000, // Longer timeout for web search
+        retryAttempts: 3,
+      };
+      configs.push(azureOpenAISearchConfig);
+      console.log('✅ Azure OpenAI Search provider configured', {
+        webSearchEnabled: !!(azureOpenAISearchConfig.azureSearchEndpoint && azureOpenAISearchConfig.azureSearchIndex && azureOpenAISearchConfig.azureSearchApiKey)
+      });
+    } else {
+      console.warn('⚠️ Azure OpenAI Search API key not found. Set AZURE_OPENAI_SEARCH_API_KEY or AZURE_OPENAI_API_KEY environment variable to enable Azure OpenAI Search provider.');
+    }
+
     // ChatGPT Search Configuration
     const chatgptSearchApiKey = process.env.OPENAI_API_KEY || process.env.CHATGPT_SEARCH_API_KEY;
     if (chatgptSearchApiKey && chatgptSearchApiKey.trim() !== '') {
@@ -141,6 +170,7 @@ export class ProviderManager {
     console.log('🔧 Provider Manager Initialized:', {
       availableProviders: configs.map(c => c.name),
       azureConfigured: !!process.env.AZURE_OPENAI_API_KEY,
+      azureSearchConfigured: !!(azureSearchApiKey && azureSearchApiKey.trim() !== ''),
       chatgptSearchConfigured: !!chatgptSearchApiKey,
       perplexityConfigured: !!perplexityApiKey,
       geminiConfigured: !!geminiApiKey,
@@ -306,14 +336,23 @@ export class ProviderManager {
           temperature: 0.7,
           max_tokens: 1000,
         };
-      
+
+      case 'azure-openai-search':
+        return {
+          messages: [
+            { role: 'user', content: request.prompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 1000,
+        };
+
       case 'chatgptsearch':
         return {
           input: request.prompt,
           model: 'gpt-4.1',
           temperature: 0.7,
         };
-      
+
       case 'perplexity':
         return {
           prompt: request.prompt,

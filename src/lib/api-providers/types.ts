@@ -69,6 +69,43 @@ export interface ChatGPTSearchRequest {
   max_tokens?: number;
 }
 
+export interface AzureOpenAISearchRequest {
+  messages: Array<{
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+  }>;
+  temperature?: number;
+  max_tokens?: number;
+  data_sources?: Array<{
+    type: 'azure_search';
+    parameters: {
+      endpoint: string;
+      index_name: string;
+      authentication: {
+        type: 'api_key' | 'system_assigned_managed_identity' | 'user_assigned_managed_identity';
+        key?: string;
+        managed_identity_resource_id?: string;
+      };
+      query_type?: 'simple' | 'semantic' | 'vector';
+      in_scope?: boolean;
+      top_n_documents?: number;
+      strictness?: number;
+      role_information?: string;
+      embedding_dependency?: {
+        type: 'deployment_name';
+        deployment_name: string;
+      };
+      fields_mapping?: {
+        content_fields?: string[];
+        filepath_field?: string;
+        title_field?: string;
+        url_field?: string;
+        vector_fields?: string[];
+      };
+    };
+  }>;
+}
+
 export interface PerplexityRequest {
   prompt?: string;
   input?: string;

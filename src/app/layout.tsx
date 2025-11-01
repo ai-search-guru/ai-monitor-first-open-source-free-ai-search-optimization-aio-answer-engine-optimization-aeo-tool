@@ -12,7 +12,7 @@ const inter = Inter( { subsets: [ 'latin' ] } );
 
 // Metadata for the application
 export const metadata = {
-  title: 'AI Monitor Dashboard',
+  title: 'GetCito Dashboard',
   description: 'Intelligent brand analysis and query optimization platform',
 };
 

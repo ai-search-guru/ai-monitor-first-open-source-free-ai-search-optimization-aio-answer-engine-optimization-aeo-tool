@@ -92,7 +92,14 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       providerImports['ChatGPTSearchProvider'] = `❌ ${error instanceof Error ? error.message : String(error)}`;
     }
-    
+
+    try {
+      const { AzureOpenAISearchProvider } = await import('@/lib/api-providers/azure-openai-search-provider');
+      providerImports['AzureOpenAISearchProvider'] = '✅ Success';
+    } catch (error) {
+      providerImports['AzureOpenAISearchProvider'] = `❌ ${error instanceof Error ? error.message : String(error)}`;
+    }
+
     try {
       const { GoogleAIOverviewProvider } = await import('@/lib/api-providers/google-ai-overview-provider');
       providerImports['GoogleAIOverviewProvider'] = '✅ Success';
@@ -161,6 +168,7 @@ export async function GET(request: NextRequest) {
         providerManagerImportError ? '⚠️ Check provider manager implementation' : null,
         providersError ? '⚠️ Check provider initialization' : null,
         !availableProviders.includes('chatgptsearch') ? '⚠️ ChatGPT Search provider not available' : null,
+        !availableProviders.includes('azure-openai-search') ? '⚠️ Azure OpenAI Search provider not available' : null,
         !availableProviders.includes('perplexity') ? '⚠️ Perplexity provider not available' : null,
         !availableProviders.includes('google-ai-overview') ? '⚠️ Google AI Overview provider not available' : null,
       ].filter(Boolean)
