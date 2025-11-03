@@ -67,7 +67,7 @@ export class ProviderManager {
     };
     configs.push(azureConfig);
 
-    // Azure OpenAI Search Configuration (replaces ChatGPT Search)
+    // Azure OpenAI Direct Configuration (Azure Search integration DISABLED)
     const azureSearchApiKey = process.env.AZURE_OPENAI_SEARCH_API_KEY || process.env.AZURE_OPENAI_API_KEY;
     if (azureSearchApiKey && azureSearchApiKey.trim() !== '') {
       const azureOpenAISearchConfig = {
@@ -76,20 +76,19 @@ export class ProviderManager {
         apiKey: azureSearchApiKey,
         azureEndpoint: process.env.AZURE_OPENAI_SEARCH_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT || 'https://your-resource-name.openai.azure.com',
         deploymentName: process.env.AZURE_OPENAI_SEARCH_DEPLOYMENT || process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4',
-        apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-10-21',
-        // Optional: Azure Search configuration for web search
+        // Use stable API version for direct calls (Azure Search disabled)
+        apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-08-01-preview',
+        // NOTE: Azure Search configuration ignored - integration disabled
         azureSearchEndpoint: process.env.AZURE_SEARCH_ENDPOINT,
         azureSearchIndex: process.env.AZURE_SEARCH_INDEX,
         azureSearchApiKey: process.env.AZURE_SEARCH_API_KEY,
-        timeout: 45000, // Longer timeout for web search
+        timeout: 30000,
         retryAttempts: 3,
       };
       configs.push(azureOpenAISearchConfig);
-      console.log('✅ Azure OpenAI Search provider configured', {
-        webSearchEnabled: !!(azureOpenAISearchConfig.azureSearchEndpoint && azureOpenAISearchConfig.azureSearchIndex && azureOpenAISearchConfig.azureSearchApiKey)
-      });
+      console.log('✅ Azure OpenAI provider configured in DIRECT mode (search integration disabled)');
     } else {
-      console.warn('⚠️ Azure OpenAI Search API key not found. Set AZURE_OPENAI_SEARCH_API_KEY or AZURE_OPENAI_API_KEY environment variable to enable Azure OpenAI Search provider.');
+      console.warn('⚠️ Azure OpenAI API key not found. Set AZURE_OPENAI_SEARCH_API_KEY or AZURE_OPENAI_API_KEY environment variable to enable Azure OpenAI provider.');
     }
 
     // ChatGPT Search Configuration
@@ -170,7 +169,8 @@ export class ProviderManager {
     console.log('🔧 Provider Manager Initialized:', {
       availableProviders: configs.map(c => c.name),
       azureConfigured: !!process.env.AZURE_OPENAI_API_KEY,
-      azureSearchConfigured: !!(azureSearchApiKey && azureSearchApiKey.trim() !== ''),
+      azureDirectMode: !!(azureSearchApiKey && azureSearchApiKey.trim() !== ''),
+      azureSearchIntegration: 'DISABLED',
       chatgptSearchConfigured: !!chatgptSearchApiKey,
       perplexityConfigured: !!perplexityApiKey,
       geminiConfigured: !!geminiApiKey,
@@ -253,7 +253,7 @@ export class ProviderManager {
           hasContent: !!result.data?.content
         });
         
-        // Enhanced logging for Google AI Overview
+        // Enhanced logging for specific providers
         if (providerName === 'google-ai-overview') {
           console.log(`🔍 ${providerName} detailed result:`, {
             dataKeys: Object.keys(result.data || {}),
@@ -265,8 +265,35 @@ export class ProviderManager {
           });
         }
         
+        if (providerName === 'azure-openai-search') {
+          console.log(`🔍 ${providerName} detailed result:`, {
+            dataKeys: Object.keys(result.data || {}),
+            content: result.data?.content?.substring(0, 200) + '...',
+            contentLength: result.data?.content?.length || 0,
+            hasAnnotations: !!result.data?.annotations,
+            annotationsCount: result.data?.annotations?.length || 0,
+            webSearchUsed: result.data?.webSearchUsed,
+            model: result.data?.model
+          });
+        }
+        
+        if (providerName === 'perplexity') {
+          console.log(`🔍 ${providerName} detailed result:`, {
+            dataKeys: Object.keys(result.data || {}),
+            content: result.data?.content?.substring(0, 200) + '...',
+            contentLength: result.data?.content?.length || 0,
+            hasCitations: !!result.data?.citations,
+            citationsCount: result.data?.citations?.length || 0,
+            realTimeData: result.data?.realTimeData
+          });
+        }
+        
         return result;
       } catch (error) {
+        console.error(`❌ ${providerName} execution failed:`, {
+          error: (error as Error).message,
+          stack: (error as Error).stack
+        });
         return {
           providerId: providerName,
           requestId: request.id,
@@ -309,6 +336,22 @@ export class ProviderManager {
       totalCost,
       totalTime: Date.now() - startTime
     });
+    
+    // Log individual provider results for debugging
+    results.forEach(result => {
+      if (result.status === 'error') {
+        console.error(`❌ ${result.providerId} FAILED:`, {
+          error: result.error,
+          responseTime: result.responseTime
+        });
+      } else {
+        console.log(`✅ ${result.providerId} SUCCESS:`, {
+          hasData: !!result.data,
+          cost: result.cost,
+          responseTime: result.responseTime
+        });
+      }
+    });
 
     // Aggregate results (implement your business logic here)
     const aggregatedData = this.aggregateResults(results);
@@ -343,7 +386,7 @@ export class ProviderManager {
             { role: 'user', content: request.prompt }
           ],
           temperature: 0.7,
-          max_tokens: 1000,
+          max_tokens: 4000, // Increased from 1000 for more detailed responses
         };
 
       case 'chatgptsearch':

@@ -269,19 +269,6 @@ function Page(): React.ReactElement {
           data
         });
       };
-      console.log('🔧 Developer tools available:');
-      console.log('- seedSampleData() - Populate database with sample data');
-      console.log('- refreshDashboard() - Refresh dashboard data');
-      console.log('- debugDashboard() - Show debug information');
-      console.log('- Ctrl+Shift+S - Keyboard shortcut to seed data');
-      
-      // Test context availability
-      console.log('🧪 Context Test:', {
-        brandsLoaded: brands.length > 0,
-        selectedBrandId,
-        selectedBrandName: selectedBrand?.companyName,
-        contextWorking: 'Brand context is working!'
-      });
     }
   }, [user?.uid, handleSeedData, refetch, selectedBrand, selectedBrandId, data, dataLoading, error, brands]);
 

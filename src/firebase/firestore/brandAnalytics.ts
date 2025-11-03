@@ -987,7 +987,6 @@ export async function saveBrandAnalytics(analyticsData: BrandAnalyticsData): Pro
     const docRef = doc(collection(db, 'v8_user_brand_analytics'));
     await setDoc(docRef, analyticsData);
     
-    console.log('✅ Brand analytics saved to Firestore:', docRef.id);
     return { success: true };
   } catch (error) {
     console.error('❌ Error saving brand analytics:', error);

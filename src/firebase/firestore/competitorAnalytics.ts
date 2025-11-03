@@ -296,14 +296,6 @@ export async function saveCompetitorAnalytics(analyticsData: CompetitorAnalytics
 
     // Save to v8competitoranalytics collection
     await setDoc(doc(db, 'v8competitoranalytics', documentId), dataToSave);
-    
-    console.log('✅ Competitor analytics saved successfully:', {
-      documentId,
-      brandId: analyticsData.brandId,
-      totalCompetitorMentions: analyticsData.totalCompetitorMentions,
-      uniqueCompetitorsDetected: analyticsData.uniqueCompetitorsDetected,
-      competitorVisibilityScore: analyticsData.competitorVisibilityScore
-    });
 
     result = { success: true, documentId };
   } catch (e) {

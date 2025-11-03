@@ -35,7 +35,22 @@ export abstract class BaseAPIProvider {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Try to get detailed error message from response body
+        let errorDetails = response.statusText;
+        try {
+          const errorBody = await response.text();
+          if (errorBody) {
+            try {
+              const errorJson = JSON.parse(errorBody);
+              errorDetails = errorJson.error?.message || errorJson.message || errorBody;
+            } catch {
+              errorDetails = errorBody.substring(0, 500); // Limit error message length
+            }
+          }
+        } catch (e) {
+          // If we can't read the body, just use statusText
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorDetails}`);
       }
 
       return await response.json();

@@ -34,7 +34,6 @@ export async function getFirebaseIdToken(): Promise<string | null> {
     // Get the ID token (this will refresh if needed)
     const idToken = await user.getIdToken();
     
-    console.log('✅ Firebase ID token obtained successfully');
     return idToken;
     
   } catch (error) {
@@ -57,23 +56,18 @@ export async function getFirebaseIdTokenWithRetry(
     try {
       const token = await getFirebaseIdToken();
       if (token) {
-        console.log(`✅ Firebase ID token obtained on attempt ${attempt}`);
         return token;
       }
       
       if (attempt < maxRetries) {
-        console.log(`🔄 Retry ${attempt}/${maxRetries} - waiting ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     } catch (error) {
-      console.error(`❌ Attempt ${attempt}/${maxRetries} failed:`, error);
-      
       if (attempt < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
   
-  console.error('❌ Failed to get Firebase ID token after all retries');
   return null;
 } 

@@ -373,7 +373,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps): React.React
           {/* User section */}
           <div className="p-4 border-t border-[#1a4a54]">
             {/* Credits Display */}
-            {userProfile && (
+            {userProfile && typeof userProfile.credits === 'number' && (
               <div className={`mb-3 px-4 py-2 rounded-xl border ${
                 userProfile.credits < 50 
                   ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200' 

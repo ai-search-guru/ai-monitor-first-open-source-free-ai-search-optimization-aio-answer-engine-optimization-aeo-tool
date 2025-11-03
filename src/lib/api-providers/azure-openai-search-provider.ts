@@ -21,24 +21,27 @@ export class AzureOpenAISearchProvider extends BaseAPIProvider {
     super('azure-openai-search', 'ai', config);
     this.azureEndpoint = config.azureEndpoint;
     this.deploymentName = config.deploymentName;
-    this.apiVersion = config.apiVersion || '2024-10-21';
+    // Use stable API version for direct OpenAI calls (without Azure Search)
+    this.apiVersion = config.apiVersion || '2024-08-01-preview';
     this.azureSearchEndpoint = config.azureSearchEndpoint;
     this.azureSearchIndex = config.azureSearchIndex;
     this.azureSearchApiKey = config.azureSearchApiKey;
 
-    // Web search is enabled if Azure Search is configured
-    this.webSearchEnabled = !!(this.azureSearchEndpoint && this.azureSearchIndex && this.azureSearchApiKey);
+    // DISABLED: Azure Search integration is now disabled
+    // Always use direct Azure OpenAI endpoint without data sources
+    this.webSearchEnabled = false;
 
-    if (this.webSearchEnabled) {
-      console.log('✅ Azure OpenAI Search provider initialized WITH web search enabled via Azure Search');
-    } else {
-      console.log('⚠️ Azure OpenAI Search provider initialized WITHOUT web search (Azure Search not configured)');
-    }
+    console.log('✅ Azure OpenAI provider initialized in DIRECT mode (Azure Search disabled)', {
+      endpoint: this.azureEndpoint,
+      deployment: this.deploymentName,
+      apiVersion: this.apiVersion,
+      mode: 'Direct Azure OpenAI without search integration'
+    });
   }
 
   async execute(request: AzureOpenAISearchRequest): Promise<APIResponse> {
     const startTime = Date.now();
-    const requestId = `azure-openai-search-${Date.now()}`;
+    const requestId = `azure-openai-${Date.now()}`;
 
     try {
       if (!this.validateRequest(request)) {
@@ -49,34 +52,20 @@ export class AzureOpenAISearchProvider extends BaseAPIProvider {
 
       const url = `${this.azureEndpoint}/openai/deployments/${this.deploymentName}/chat/completions?api-version=${this.apiVersion}`;
 
-      // Build request body
-      const requestBody: any = {
+      // Build request body - DIRECT mode without Azure Search data sources
+      const requestBody = {
         messages: request.messages,
         temperature: request.temperature || 0.7,
-        max_tokens: request.max_tokens || 1000,
+        max_tokens: request.max_tokens || 4000,
       };
 
-      // Add Azure Search data sources if web search is enabled
-      if (this.webSearchEnabled && this.azureSearchEndpoint && this.azureSearchIndex && this.azureSearchApiKey) {
-        requestBody.data_sources = [
-          {
-            type: 'azure_search',
-            parameters: {
-              endpoint: this.azureSearchEndpoint,
-              index_name: this.azureSearchIndex,
-              authentication: {
-                type: 'api_key',
-                key: this.azureSearchApiKey,
-              },
-              query_type: 'simple',
-              in_scope: true,
-              top_n_documents: 5,
-              strictness: 3,
-              role_information: 'You are an AI assistant that helps people find information using web search.',
-            }
-          }
-        ];
-      }
+      console.log('🚀 Sending direct Azure OpenAI request to:', url);
+      console.log('📦 Request body:', JSON.stringify({
+        messages: requestBody.messages,
+        temperature: requestBody.temperature,
+        max_tokens: requestBody.max_tokens,
+        mode: 'Direct (no search integration)'
+      }, null, 2));
 
       const rawResponse = await this.retryRequest(async () => {
         return await this.makeRequest(url, {
@@ -90,26 +79,22 @@ export class AzureOpenAISearchProvider extends BaseAPIProvider {
       });
 
       // Console log the complete raw response
-      console.log('🔍 Azure OpenAI Search Complete Raw Response:', JSON.stringify(rawResponse, null, 2));
+      console.log('🔍 Azure OpenAI Direct Response:', JSON.stringify(rawResponse, null, 2));
 
       // Log specific parts for easier debugging
-      console.log('🌐 Azure OpenAI Search Response Summary:', {
+      console.log('🌐 Azure OpenAI Response Summary:', {
         model: rawResponse.model,
         hasContent: !!rawResponse.choices?.[0]?.message?.content,
         contentLength: rawResponse.choices?.[0]?.message?.content?.length || 0,
         contentPreview: rawResponse.choices?.[0]?.message?.content?.substring(0, 200) + '...',
         usage: rawResponse.usage,
-        hasCitations: !!rawResponse.choices?.[0]?.message?.context?.citations,
-        citationsCount: rawResponse.choices?.[0]?.message?.context?.citations?.length || 0,
-        citationsPreview: rawResponse.choices?.[0]?.message?.context?.citations?.slice(0, 3) || [],
-        webSearchUsed: this.webSearchEnabled,
         finishReason: rawResponse.choices?.[0]?.finish_reason
       });
 
       const transformedData = this.transformResponse(rawResponse);
 
       // Console log the transformed data
-      console.log('✨ Azure OpenAI Search Transformed Data:', JSON.stringify(transformedData, null, 2));
+      console.log('✨ Azure OpenAI Transformed Data:', JSON.stringify(transformedData, null, 2));
 
       const responseTime = Date.now() - startTime;
       const cost = this.calculateCost(rawResponse.usage?.total_tokens);
@@ -126,14 +111,14 @@ export class AzureOpenAISearchProvider extends BaseAPIProvider {
 
     } catch (error) {
       const responseTime = Date.now() - startTime;
+      const errorMessage = (error as Error).message;
 
-      // Console log Azure OpenAI Search errors
-      console.error('❌ Azure OpenAI Search Request Error:', {
+      // Console log Azure OpenAI errors
+      console.error('❌ Azure OpenAI Request Error:', {
         requestId,
-        error: (error as Error).message,
+        error: errorMessage,
         stack: (error as Error).stack,
         responseTime,
-        webSearchEnabled: this.webSearchEnabled,
         endpoint: `${this.azureEndpoint}/openai/deployments/${this.deploymentName}/chat/completions`,
         request: JSON.stringify(request, null, 2)
       });
@@ -142,7 +127,7 @@ export class AzureOpenAISearchProvider extends BaseAPIProvider {
         providerId: this.name,
         requestId,
         status: 'error',
-        error: (error as Error).message,
+        error: errorMessage,
         responseTime,
         cost: 0,
         timestamp: new Date(),
@@ -162,44 +147,27 @@ export class AzureOpenAISearchProvider extends BaseAPIProvider {
   transformResponse(rawResponse: any): any {
     const message = rawResponse.choices?.[0]?.message;
     const content = message?.content || '';
-    const context = message?.context;
-    const citations = context?.citations || [];
-    const intent = context?.intent;
-
-    // Transform Azure Search citations to match ChatGPT Search annotations format
-    const annotations = citations.map((citation: any, index: number) => ({
-      text: citation.content || '',
-      title: citation.title || '',
-      url: citation.url || '',
-      filepath: citation.filepath || '',
-      chunk_id: citation.chunk_id || String(index),
-      source: citation.url || citation.filepath || 'Unknown source',
-    }));
 
     return {
       content: content,
       model: rawResponse.model || this.deploymentName,
       usage: rawResponse.usage,
-      searchEnabled: this.webSearchEnabled,
-      webSearchUsed: this.webSearchEnabled && citations.length > 0,
-      tools: this.webSearchEnabled ? ['azure_search'] : [],
-      // Include annotations (sources, citations, etc.) in ChatGPT Search format
-      annotations: annotations,
-      annotationsCount: annotations.length,
-      // Include Azure-specific context
-      context: context ? {
-        intent: intent,
-        hasCitations: citations.length > 0,
-      } : undefined,
-      // Include any other metadata
+      searchEnabled: false,
+      webSearchUsed: false,
+      tools: [],
+      // No annotations in direct mode
+      annotations: [],
+      annotationsCount: 0,
+      // Include metadata
       metadata: {
-        hasAnnotations: annotations.length > 0,
-        hasCitations: citations.length > 0,
+        hasAnnotations: false,
+        hasCitations: false,
         responseId: rawResponse.id,
         created: rawResponse.created,
         object: rawResponse.object,
         finishReason: rawResponse.choices?.[0]?.finish_reason,
-        webSearchConfigured: this.webSearchEnabled,
+        webSearchConfigured: false,
+        mode: 'direct',
       },
       // Raw response for debugging (optional)
       rawResponse: rawResponse
@@ -211,11 +179,8 @@ export class AzureOpenAISearchProvider extends BaseAPIProvider {
     const baseCostPer1K = 0.03;  // Input: $0.03 per 1K tokens
     const outputCostPer1K = 0.06; // Output: $0.06 per 1K tokens
 
-    // Add premium for Azure Search if web search is enabled
-    const searchPremium = this.webSearchEnabled ? 0.01 : 0;
-
     // Simplified calculation - in production you'd track input/output tokens separately
-    return (tokensUsed / 1000) * ((baseCostPer1K + outputCostPer1K) / 2 + searchPremium);
+    return (tokensUsed / 1000) * ((baseCostPer1K + outputCostPer1K) / 2);
   }
 
   async healthCheck(): Promise<boolean> {

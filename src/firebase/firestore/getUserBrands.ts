@@ -162,13 +162,6 @@ export async function updateBrandWithQueryResults(
     };
     
     const serializedSize = JSON.stringify(queryResults).length;
-    console.log(`📊 Checking data size for brand ${brandId}:`, {
-      queryResults: queryResults.length,
-      estimatedSize: `${(serializedSize / 1024).toFixed(2)} KB`,
-      sizeInBytes: serializedSize,
-      firestoreLimit: '1048576 bytes (1MB)',
-      willExceedLimit: exceedsFirestoreLimit(dataToStore)
-    });
     
     // If the data is too large, use Cloud Storage
     const shouldUseCloudStorage = exceedsFirestoreLimit(dataToStore) || serializedSize > 1000000; // Force if >1MB
@@ -192,8 +185,6 @@ export async function updateBrandWithQueryResults(
         existingResults = existingResults.filter(
           result => result.processingSessionId !== currentSessionId
         );
-        
-        console.log(`🔄 Processing session ${currentSessionId}: Removed existing session data, now adding ${queryResults.length} new results`);
       }
       
       // Append the new query results
@@ -222,18 +213,8 @@ export async function updateBrandWithQueryResults(
         throw storageError;
       }
       
-      console.log(`✅ Brand updated with query results using Cloud Storage:`, {
-        brandId,
-        newSessionResults: queryResults.length,
-        totalResults: allResults.length,
-        storedInCloudStorage: true,
-        processingSessionId: currentSessionId
-      });
-      
     } else {
       // Use traditional Firestore storage for smaller data
-      console.log(`💾 Data fits in Firestore, using traditional storage for brand ${brandId}`);
-      
       const brandRef = doc(db, 'v8userbrands', brandId);
       
       // First, fetch the current brand data to get existing results
@@ -253,8 +234,6 @@ export async function updateBrandWithQueryResults(
         existingResults = existingResults.filter(
           result => result.processingSessionId !== currentSessionId
         );
-        
-        console.log(`🔄 Processing session ${currentSessionId}: Removed existing session data, now adding ${queryResults.length} new results`);
       }
       
       // Append the new query results
@@ -305,8 +284,6 @@ export async function updateBrandWithQueryResults(
         updatedAt: serverTimestamp()
       }).length;
       
-      console.log(`📏 Truncated data size: ${(truncatedDataSize / 1024).toFixed(2)} KB`);
-      
       // If still too large, reduce to only the most essential data
       if (truncatedDataSize > 800000) { // 800KB safety limit
         console.log('⚠️ Data still too large after truncation, using minimal data approach');
@@ -338,14 +315,6 @@ export async function updateBrandWithQueryResults(
           updatedAt: serverTimestamp()
         }, { merge: true });
               }
-
-      console.log(`✅ Brand updated with query results using Firestore:`, {
-        brandId,
-        newSessionResults: queryResults.length,
-        totalResults: allResults.length,
-        storedInFirestore: true,
-        processingSessionId: currentSessionId
-      });
     }
 
   } catch (e) {

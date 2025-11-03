@@ -176,16 +176,6 @@ export function extractPerplexityCitations(text: string, perplexityData?: Perple
   const citations: Citation[] = [];
   const seen = new Set<string>();
   
-  // Debug logging
-  console.log('🔍 PerplexityResponseRenderer - extracting citations:', {
-    textLength: text?.length || 0,
-    hasPerplexityData: !!perplexityData,
-    perplexityDataKeys: perplexityData ? Object.keys(perplexityData) : [],
-    citationsData: perplexityData?.citationsData,
-    searchResultsData: perplexityData?.searchResultsData,
-    structuredCitationsData: perplexityData?.structuredCitationsData
-  });
-  
   // Extract from flattened citations data (primary source)
   if (perplexityData?.citationsData && perplexityData.citationsData.trim()) {
     const citationUrls = perplexityData.citationsData.split('|||').filter(Boolean);
@@ -336,22 +326,8 @@ export function extractPerplexityCitations(text: string, perplexityData?: Perple
     }
   }
   
-  console.log('🔍 PerplexityResponseRenderer - extracted citations (before filtering):', {
-    citationsCount: citations.length,
-    citations: citations.slice(0, 3), // Log first 3 for debugging
-    firstCitation: citations[0] || null,
-    citationSources: citations.map(c => ({ url: c.url, source: c.source, type: c.type }))
-  });
-  
   // Always ignore the first citation as requested
   const filteredCitations = citations.length > 0 ? citations.slice(1) : citations;
-  
-  console.log('🔍 PerplexityResponseRenderer - extracted citations (after filtering first):', {
-    originalCount: citations.length,
-    filteredCount: filteredCitations.length,
-    removedFirstCitation: citations[0] || null,
-    filteredCitations: filteredCitations.slice(0, 3) // Log first 3 after filtering
-  });
   
   return filteredCitations;
 }

@@ -267,7 +267,7 @@ export function GoogleAIOverviewResponse({ googleAIData }: GoogleAIOverviewRespo
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-sm font-semibold text-gray-700">Real-time Search</span>
+            <span className="text-sm font-semibold text-gray-700">Real-time Search Enabled in Starter & Trial Plan</span>
           </div>
         </div>
       </div>

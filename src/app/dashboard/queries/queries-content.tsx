@@ -493,14 +493,6 @@ function AIResponseModal({ selectedQuery, onClose }: AIResponseModalProps) {
       citations: perplexityCitations
     } : undefined
   }, selectedBrand?.competitors || []);
-  
-  // Debug logging
-  console.log('🔍 Brand Analysis Debug:', {
-    brandName,
-    brandDomain,
-    brandAnalysis,
-    selectedQuery: selectedQuery.query
-  });
 
   // Function to get citation counts for each provider - use the same citations from brand analysis
   const getCitationCounts = () => {

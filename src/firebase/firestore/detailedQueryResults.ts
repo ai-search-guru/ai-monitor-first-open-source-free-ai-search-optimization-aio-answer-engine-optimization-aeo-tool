@@ -162,7 +162,6 @@ export async function saveDetailedQueryResults(
     // Execute all writes
     await Promise.all(batch);
     
-    console.log(`✅ Saved ${queryResults.length} detailed query results to separate collection`);
     return { success: true };
     
   } catch (error) {

@@ -116,20 +116,15 @@ export default function ProcessQueriesButton({
 
     try {
       // Get Firebase ID token for authentication with retry logic
-      console.log('🔑 Getting Firebase ID token...');
       const idToken = await getFirebaseIdTokenWithRetry(3, 1000);
       
       if (!idToken) {
         throw new Error('Failed to get authentication token. Please sign in again.');
       }
-      
-      console.log('✅ Firebase ID token obtained, proceeding with API calls');
 
       // Generate unique processing session identifier
       const processingSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const processingSessionTimestamp = new Date().toISOString();
-      
-      console.log(`🔄 Starting new processing session: ${processingSessionId} at ${processingSessionTimestamp}`);
       
       // Process queries one by one and save incrementally
       const allResults: any[] = [];
@@ -138,7 +133,6 @@ export default function ProcessQueriesButton({
       for (const query of queries) {
         // Check if cancelled
         if (cancelledRef.current) {
-          console.log('🛑 Processing cancelled by user');
           break;
         }
 
@@ -151,7 +145,6 @@ export default function ProcessQueriesButton({
           setMessage(`Processing query ${processedCount + 1} of ${queries.length} for ${brandName}... (10 credits per query)`);
           
           // Process individual query with authentication
-          console.log(`🚀 Making authenticated API call for query: ${query.query.substring(0, 30)}...`);
           
           let response;
           try {
@@ -171,8 +164,6 @@ export default function ProcessQueriesButton({
             console.error('❌ Fetch error:', fetchError);
             throw new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : 'Unknown fetch error'}`);
           }
-
-          console.log(`📡 API response status: ${response.status}`);
 
           if (!response.ok) {
             const errorText = await response.text();
@@ -212,34 +203,8 @@ export default function ProcessQueriesButton({
 
           const queryData = await response.json();
           
-          // 🚨🚨🚨 BROWSER CONSOLE LOGGING FOR RAW DATAFORSEO RESPONSE 🚨🚨🚨
-          console.log('🚨🚨🚨 COMPLETE API RESPONSE 🚨🚨🚨', queryData);
-          
-          // Check for Google AI Overview data specifically
-          const googleAIResult = queryData.results?.find((r: any) => r.providerId === 'google-ai-overview');
-          if (googleAIResult) {
-            console.log('🚨🚨🚨 GOOGLE AI OVERVIEW RESULT 🚨🚨🚨', googleAIResult);
-            
-            if (googleAIResult.data?.rawDataForSEOResponse) {
-              console.log('🚨🚨🚨 RAW DATAFORSEO RESPONSE IN BROWSER 🚨🚨🚨');
-              console.log(JSON.stringify(googleAIResult.data.rawDataForSEOResponse, null, 2));
-              console.log('🚨🚨🚨 RAW DATAFORSEO RESPONSE END 🚨🚨🚨');
-            } else {
-              console.log('❌ No rawDataForSEOResponse found in Google AI Overview result');
-            }
-          } else {
-            console.log('❌ No Google AI Overview result found in API response');
-          }
-          
-          // Log credit deduction info and refresh user profile
+          // Refresh user profile to update credits in sidebar
           if (queryData.userCredits) {
-            console.log('💰 Credit deduction successful:', {
-              before: queryData.userCredits.before,
-              after: queryData.userCredits.after,
-              deducted: queryData.userCredits.deducted
-            });
-            
-            // Refresh user profile to update credits in sidebar
             await refreshUserProfile();
           }
           
@@ -336,8 +301,6 @@ export default function ProcessQueriesButton({
           // Save individual result immediately
           setMessage(`Saving result ${processedCount} of ${queries.length} for ${brandName}...`);
           
-          console.log(`💾 Saving ${allResults.length} results for brand ${targetBrandId}`);
-          
           // Save detailed results to separate collection first
           const { success: detailedSaveSuccess, error: detailedSaveError } = await saveDetailedQueryResults(
             targetBrandId!,
@@ -358,8 +321,6 @@ export default function ProcessQueriesButton({
 
           if (updateError) {
             console.error('Error saving individual result:', updateError);
-          } else {
-            console.log(`✅ Successfully saved ${allResults.length} results`);
           }
 
           // Calculate and save incremental analytics after each query
@@ -378,14 +339,7 @@ export default function ProcessQueriesButton({
             
             const { success: analyticsSaveSuccess, error: analyticsSaveError } = await saveBrandAnalytics(analyticsData);
             
-            if (analyticsSaveSuccess) {
-              console.log(`✅ Incremental analytics saved after query ${processedCount}:`, {
-                totalBrandMentions: analyticsData.totalBrandMentions,
-                brandVisibilityScore: analyticsData.brandVisibilityScore,
-                totalCitations: analyticsData.totalCitations,
-                topPerformingProvider: analyticsData.insights.topPerformingProvider
-              });
-            } else {
+            if (!analyticsSaveSuccess) {
               console.error('❌ Error saving incremental analytics:', analyticsSaveError);
             }
           } catch (analyticsError) {
@@ -418,18 +372,9 @@ export default function ProcessQueriesButton({
               
               const { result: competitorSaveResult, error: competitorSaveError } = await saveCompetitorAnalytics(competitorAnalyticsData);
               
-              if (competitorSaveResult?.success) {
-                console.log(`✅ Incremental competitor analytics saved after query ${processedCount}:`, {
-                  totalCompetitorMentions: competitorAnalyticsData.totalCompetitorMentions,
-                  competitorVisibilityScore: competitorAnalyticsData.competitorVisibilityScore,
-                  uniqueCompetitorsDetected: competitorAnalyticsData.uniqueCompetitorsDetected,
-                  topCompetitor: competitorAnalyticsData.insights.topCompetitor
-                });
-              } else {
+              if (!competitorSaveResult?.success) {
                 console.error('❌ Error saving incremental competitor analytics:', competitorSaveError);
               }
-            } else {
-              console.log('ℹ️ No competitors defined for brand, skipping competitor analytics');
             }
           } catch (competitorAnalyticsError) {
             console.error('❌ Error calculating/saving competitor analytics:', competitorAnalyticsError);
@@ -498,19 +443,15 @@ export default function ProcessQueriesButton({
       if (processedCount > 0) {
         try {
           setMessage(`Updating lifetime analytics for ${brandName}...`);
-          console.log('🔄 Calculating lifetime analytics after query processing completion...');
           
           const { result: lifetimeAnalytics, error: lifetimeError } = await calculateLifetimeBrandAnalytics(targetBrandId!);
           
           if (lifetimeError) {
             console.error('❌ Error calculating lifetime analytics:', lifetimeError);
           } else if (lifetimeAnalytics) {
-            console.log('💾 Saving lifetime analytics to ensure citations table is updated...');
             const { success: lifetimeSaveSuccess, error: lifetimeSaveError } = await saveLifetimeAnalytics(lifetimeAnalytics);
             
-            if (lifetimeSaveSuccess) {
-              console.log('✅ Lifetime analytics saved successfully - citations table should now be updated');
-            } else {
+            if (!lifetimeSaveSuccess) {
               console.error('❌ Error saving lifetime analytics:', lifetimeSaveError);
             }
           }
@@ -537,9 +478,7 @@ export default function ProcessQueriesButton({
 
       // Force a complete refresh of brand data to ensure all components update
       try {
-        console.log('🔄 Forcing complete brand data refresh after query processing...');
         await refetchBrands();
-        console.log('✅ Brand data refresh completed');
       } catch (refreshError) {
         console.error('❌ Error during final brand data refresh:', refreshError);
       }
@@ -574,7 +513,6 @@ export default function ProcessQueriesButton({
       // Refresh user profile to show updated credits
       try {
         await refreshUserProfile();
-        console.log('✅ User profile refreshed to show updated credits');
       } catch (refreshError) {
         console.error('❌ Error refreshing user profile:', refreshError);
       }
